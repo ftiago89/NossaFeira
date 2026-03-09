@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nossafeira.data.model.Categoria
+import com.example.nossafeira.data.model.ItemFeira
 import com.example.nossafeira.ui.components.AddItemSheet
 import com.example.nossafeira.ui.components.FilterChips
 import com.example.nossafeira.ui.components.ItemCard
@@ -68,6 +69,7 @@ fun ItensScreen(
     val itensFiltrados by viewModel.itensFiltrados.collectAsStateWithLifecycle()
     val filtroCategoria by viewModel.filtroCategoria.collectAsStateWithLifecycle()
     var mostrarAddSheet by remember { mutableStateOf(false) }
+    var itemParaEditar by remember { mutableStateOf<ItemFeira?>(null) }
 
     val totalItens = listaComItens?.itens?.size ?: 0
     val itensComprados = listaComItens?.itens?.count { it.comprado } ?: 0
@@ -130,6 +132,7 @@ fun ItensScreen(
                         item = item,
                         onToggleComprado = { viewModel.toggleComprado(item) },
                         onDelete = { viewModel.deletarItem(item.id) },
+                        onLongClick = { itemParaEditar = item },
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 4.dp)
                             .animateItem()
@@ -146,6 +149,17 @@ fun ItensScreen(
                 viewModel.adicionarItem(nome, quantidade, categoria, preco)
                 mostrarAddSheet = false
             }
+        )
+    }
+
+    itemParaEditar?.let { item ->
+        AddItemSheet(
+            onDismiss = { itemParaEditar = null },
+            onConfirm = { nome, quantidade, categoria, preco ->
+                viewModel.editarItem(item, nome, quantidade, categoria, preco)
+                itemParaEditar = null
+            },
+            itemParaEditar = item
         )
     }
 }

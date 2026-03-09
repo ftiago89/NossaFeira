@@ -56,6 +56,15 @@ class ItensViewModel(
         }
     }
 
+    fun editarItem(item: ItemFeira, nome: String, quantidade: String, categoria: Categoria, preco: Double) {
+        if (nome.isBlank()) return
+        viewModelScope.launch {
+            repository.atualizarItem(
+                item.copy(nome = nome.trim(), quantidade = quantidade.trim(), categoria = categoria, preco = preco)
+            )
+        }
+    }
+
     fun toggleComprado(item: ItemFeira) {
         viewModelScope.launch {
             repository.toggleComprado(item)

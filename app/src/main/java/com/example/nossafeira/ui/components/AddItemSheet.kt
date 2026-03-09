@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
@@ -39,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nossafeira.data.model.Categoria
+import com.example.nossafeira.data.model.ItemFeira
 import com.example.nossafeira.ui.theme.Border
 import com.example.nossafeira.ui.theme.Green
 import com.example.nossafeira.ui.theme.GreenDim
@@ -76,7 +80,8 @@ private val categoriaOptions = listOf(
 @Composable
 fun AddItemSheet(
     onDismiss: () -> Unit,
-    onConfirm: (nome: String, quantidade: String, categoria: Categoria, preco: Double) -> Unit
+    onConfirm: (nome: String, quantidade: String, categoria: Categoria, preco: Double) -> Unit,
+    itemParaEditar: ItemFeira? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -87,7 +92,15 @@ fun AddItemSheet(
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = { SheetHandle() }
     ) {
-        AddItemSheetContent(onConfirm = onConfirm)
+        AddItemSheetContent(
+            onConfirm = onConfirm,
+            nomeInicial = itemParaEditar?.nome ?: "",
+            quantidadeInicial = itemParaEditar?.quantidade ?: "",
+            precoInicial = if ((itemParaEditar?.preco ?: 0.0) > 0.0)
+                "%.2f".format(itemParaEditar!!.preco).replace('.', ',') else "",
+            categoriaInicial = itemParaEditar?.categoria,
+            modoEdicao = itemParaEditar != null
+        )
     }
 }
 
@@ -97,7 +110,8 @@ private fun AddItemSheetContent(
     nomeInicial: String = "",
     quantidadeInicial: String = "",
     precoInicial: String = "",
-    categoriaInicial: Categoria? = null
+    categoriaInicial: Categoria? = null,
+    modoEdicao: Boolean = false
 ) {
     var nome by remember { mutableStateOf(nomeInicial) }
     var quantidade by remember { mutableStateOf(quantidadeInicial) }
@@ -111,12 +125,13 @@ private fun AddItemSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
+            .windowInsetsPadding(WindowInsets.ime)
             .padding(horizontal = 20.dp)
             .padding(bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Adicionar item",
+            text = if (modoEdicao) "Editar item" else "Adicionar item",
             style = MaterialTheme.typography.titleMedium,
             color = TextPrimary
         )
@@ -236,7 +251,10 @@ private fun AddItemSheetContent(
                 disabledContentColor = TextTertiary
             )
         ) {
-            Text("Adicionar item", style = MaterialTheme.typography.labelLarge)
+            Text(
+                text = if (modoEdicao) "Salvar alterações" else "Adicionar item",
+                style = MaterialTheme.typography.labelLarge
+            )
         }
     }
 }
