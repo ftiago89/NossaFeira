@@ -212,7 +212,9 @@ val TextTertiary = Color(0xFF5A6080)
 - **EmojiBox**: background Surface2, radius 12dp, emoji 26sp
   - HORTIFRUTI → 🥬 | LATICINIOS → 🥛 | LIMPEZA → 🧹 | OUTROS → 📦
 - **Info**: nome do item (15sp semibold) + categoria (12sp, TextTertiary)
-- **Quantidade**: background Surface2, radius 8dp, padding 4dp×10dp, texto 13sp bold TextSecondary
+- **Badges (Column)**: quantidade e preço empilhados verticalmente (Arrangement.spacedBy 4dp)
+  - **Quantidade**: background Surface2, radius 8dp, padding 4dp×10dp, texto 13sp bold TextSecondary
+  - **Preço** *(condicional, só exibido quando `preco > 0`)*: background GreenDim, radius 8dp, padding 4dp×10dp, texto 13sp bold Green, formato "R$ X,XX"
 - **Delete button**: IconButton 32×32dp, ícone `Icons.Default.Delete` 18dp, cor Pink
 
 ### 7. AddListaSheet (ModalBottomSheet — tela inicial)
@@ -225,6 +227,7 @@ val TextTertiary = Color(0xFF5A6080)
 - Handle: 36×4dp, background Surface3, radius 2dp, centralizado
 - Radius top: 28dp
 - Padding: 20dp laterais, 32dp bottom
+- Conteúdo com `verticalScroll(rememberScrollState())` para permitir scroll quando o teclado cobre o botão
 
 #### Campos:
 - Label de campo: 12sp semibold uppercase, cor TextSecondary, letter-spacing 0.5

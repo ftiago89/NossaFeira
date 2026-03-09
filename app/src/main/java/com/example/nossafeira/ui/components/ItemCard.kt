@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,6 +44,7 @@ import com.example.nossafeira.data.model.Categoria
 import com.example.nossafeira.data.model.ItemFeira
 import com.example.nossafeira.ui.theme.Border
 import com.example.nossafeira.ui.theme.Green
+import com.example.nossafeira.ui.theme.GreenDim
 import com.example.nossafeira.ui.theme.NossaFeiraTheme
 import com.example.nossafeira.ui.theme.Orange
 import com.example.nossafeira.ui.theme.Pink
@@ -195,18 +195,37 @@ fun ItemCard(
                     )
                 }
 
-                // Badge de quantidade
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Surface2)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                // Badges de quantidade e preço
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = item.quantidade,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Surface2)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = item.quantidade,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextSecondary
+                        )
+                    }
+                    if (item.preco > 0.0) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GreenDim)
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "R$ ${"%.2f".format(item.preco).replace('.', ',')}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Green
+                            )
+                        }
+                    }
                 }
 
                 // Botão de exclusão
@@ -231,7 +250,7 @@ fun ItemCard(
 private fun ItemCardHortifrutiPreview() {
     NossaFeiraTheme {
         ItemCard(
-            item = ItemFeira(1, 1, "Alface crespa", "2 un", Categoria.HORTIFRUTI),
+            item = ItemFeira(1, 1, "Alface crespa", "2 un", Categoria.HORTIFRUTI, preco = 3.50),
             onToggleComprado = {},
             onDelete = {},
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
