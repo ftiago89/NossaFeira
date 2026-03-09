@@ -1,0 +1,46 @@
+{
+  "name": "Claude Code — Android Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "JAVA_VERSION": "17",
+      "ANDROID_PLATFORM_VERSION": "34",
+      "ANDROID_BUILD_TOOLS_VERSION": "34.0.0"
+    }
+  },
+  "mounts": [
+    "source=android-dev-history,target=/commandhistory,type=volume",
+    "source=android-dev-claude-config,target=/home/node/.claude,type=volume",
+    "source=android-dev-gradle-cache,target=/home/node/.gradle,type=volume"
+  ],
+  "remoteUser": "node",
+  "forwardPorts": [54545],
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "ANDROID_HOME": "/opt/android-sdk",
+    "ANDROID_SDK_ROOT": "/opt/android-sdk",
+    "GRADLE_USER_HOME": "/home/node/.gradle"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "fwcd.kotlin",
+        "mathiasfrohlich.kotlin",
+        "eamodio.gitlens",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": { "path": "zsh" },
+          "bash": { "path": "bash", "icon": "terminal-bash" }
+        },
+        "editor.formatOnSave": true,
+        "terminal.integrated.persistentSessionReviveProcess": "always"
+      }
+    }
+  }
+}

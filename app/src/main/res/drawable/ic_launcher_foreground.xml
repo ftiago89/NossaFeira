@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Ícone adaptativo do NossaFeira.
+    Canvas: 108×108dp  |  Safe zone: 72×72dp centrada (coords 18–90)
+    O grupo abaixo escala o ícone Material "shopping_cart" (viewBox 24×24)
+    para caber confortavelmente dentro da safe zone.
+      scaleX/Y = 3.0  →  icon span ≈ 63×63dp
+      translate  = (15, 14) → posiciona de ~18 a ~81 nos dois eixos
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:translateX="15"
+        android:translateY="14"
+        android:scaleX="3.0"
+        android:scaleY="3.0">
+
+        <!-- Carrinho de compras (Material Design — shopping_cart, 24×24) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M7,18c-1.1,0 -1.99,0.9 -1.99,2S5.9,22 7,22s2,-0.9 2,-2 -0.9,-2 -2,-2z
+                M1,2v2h2l3.6,7.59 -1.35,2.45c-0.16,0.28 -0.25,0.61 -0.25,0.96
+                C5,16.1 6.1,17 7,17h11v-2H7.42c-0.14,0 -0.25,-0.11 -0.25,-0.25
+                l0.03,-0.12 0.9,-1.63H17c0.75,0 1.41,-0.41 1.75,-1.03
+                l3.58,-6.49A1,1 0,0,0 21.46,4H5.21l-0.94,-2H1z
+                M17,18c-1.1,0 -1.99,0.9 -1.99,2s0.89,2 1.99,2 2,-0.9 2,-2 -0.9,-2 -2,-2z" />
+
+    </group>
+
+</vector>
