@@ -12,9 +12,9 @@
 ## Estrutura de Pastas
 
 ```
-app/src/main/java/com/nossafeira/
+app/src/main/java/com/example/nossafeira/
 ├── data/
-│   ├── db/          → NossaFeiraDatabase.kt
+│   ├── db/          → NossaFeiraDatabase.kt (Room v2, com MIGRATION_1_2)
 │   ├── model/       → ListaFeira.kt, ItemFeira.kt, ListaComItens.kt
 │   ├── dao/         → ListaFeiraDao.kt, ItemFeiraDao.kt
 │   └── repository/  → NossaFeiraRepository.kt
@@ -30,9 +30,11 @@ app/src/main/java/com/nossafeira/
 │   │   ├── AddListaSheet.kt
 │   │   └── FilterChips.kt
 │   └── theme/       → Color.kt, Type.kt, Theme.kt
-└── viewmodel/
-    ├── ListasViewModel.kt
-    └── ItensViewModel.kt
+├── viewmodel/
+│   ├── ListasViewModel.kt
+│   └── ItensViewModel.kt
+├── navigation/      → NossaFeiraNavGraph.kt
+└── MainActivity.kt
 ```
 
 ## Navegação
@@ -78,6 +80,7 @@ data class ItemFeira(
     val nome: String,
     val quantidade: String,
     val categoria: Categoria,
+    val preco: Double = 0.0,        // adicionado na v2 (MIGRATION_1_2)
     val comprado: Boolean = false,
     val criadoEm: Long = System.currentTimeMillis()
 )
@@ -171,6 +174,8 @@ val TextTertiary = Color(0xFF5A6080)
   - Linha superior: label "Itens na lista" + badge verde "X comprados"
   - Valor: quantidade total de itens (20sp bold)
   - Badge comprados: background GreenDim, texto Green, radius 20dp
+  - Badge totalGasto: exibido quando > 0, mostra "R$ X,XX" (background GreenDim, texto Green, radius 20dp)
+    - Calculado somando `preco` dos itens onde `comprado == true && preco > 0`
   - ProgressBar: altura 4dp, background Surface3, fill gradient Primary→Green
   - Progresso = itens comprados / total
 
@@ -180,7 +185,7 @@ val TextTertiary = Color(0xFF5A6080)
 - Radius: 16dp
 - Padding: 16dp
 - Conteúdo:
-  - Nome da lista (17sp bold, TextPrimary)
+  - Linha superior: Nome da lista (17sp bold, TextPrimary) + botão delete (IconButton 40×40dp, ícone `Icons.Default.Delete` 20dp, cor Pink, padding end 4dp)
   - Linha de progresso: "X de Y itens comprados" (13sp, TextSecondary)
   - Valor estimado: se > 0, exibir "R$ X,XX" (13sp, TextTertiary)
   - ProgressBar fina (4dp) mostrando % de itens comprados
@@ -201,13 +206,14 @@ val TextTertiary = Color(0xFF5A6080)
 
 #### Estrutura interna do ItemCard (horizontal):
 ```
-[Checkbox 24x24dp] [EmojiBox 42x42dp] [Info flex] [Quantidade badge]
+[Checkbox 24x24dp] [EmojiBox 42x42dp] [Info flex] [Quantidade badge] [Delete 32x32dp]
 ```
 - **Checkbox**: radius 8dp, border 2dp Border; quando marcado: background Green, ícone ✓ branco
 - **EmojiBox**: background Surface2, radius 12dp, emoji 26sp
   - HORTIFRUTI → 🥬 | LATICINIOS → 🥛 | LIMPEZA → 🧹 | OUTROS → 📦
 - **Info**: nome do item (15sp semibold) + categoria (12sp, TextTertiary)
 - **Quantidade**: background Surface2, radius 8dp, padding 4dp×10dp, texto 13sp bold TextSecondary
+- **Delete button**: IconButton 32×32dp, ícone `Icons.Default.Delete` 18dp, cor Pink
 
 ### 7. AddListaSheet (ModalBottomSheet — tela inicial)
 - Campos: "Nome da lista" (obrigatório) e "Valor estimado R$" (opcional, numérico)
@@ -223,7 +229,7 @@ val TextTertiary = Color(0xFF5A6080)
 #### Campos:
 - Label de campo: 12sp semibold uppercase, cor TextSecondary, letter-spacing 0.5
 - Input: background Surface2, border 1.5dp (Border normal / Primary em foco), radius 10dp
-- Campos: "Nome do item" e "Quantidade"
+- Campos: "Nome do item", "Quantidade" e "PREÇO R$ (OPCIONAL)" (teclado decimal, valor `Double`)
 
 #### Grade de categorias (2×2):
 - Cada opção: border 1.5dp Border, radius 10dp, emoji + texto 13sp semibold
@@ -256,7 +262,8 @@ val TextTertiary = Color(0xFF5A6080)
 - **Marcar item**: toque no checkbox → alterna `comprado`, atualiza progress bar e badge
 - **Filtrar**: toque no chip → filtra lista por categoria, atualiza contador da seção
 - **Adicionar**: FAB → abre BottomSheet; validar nome não vazio e categoria selecionada
-- **Deletar**: swipe horizontal no card → revelar botão de deletar (vermelho)
+- **Deletar item**: ícone lixeira (Pink) no final do ItemCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
+- **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
 - **Animações**: itens entram com `slideIn` + `fadeIn` ao carregar a lista
 - **Feedback tátil**: `LocalHapticFeedback` ao marcar item como comprado
 
