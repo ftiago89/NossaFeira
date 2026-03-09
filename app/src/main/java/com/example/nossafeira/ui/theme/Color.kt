@@ -24,6 +24,8 @@ val Pink = Color(0xFFFF7DAA)
 val PinkDim = Color(0xFF3D1525)
 val Purple = Color(0xFFB47DFF)
 val PurpleDim = Color(0xFF2A1A3D)
+val Yellow = Color(0xFFFFD166)
+val YellowDim = Color(0xFF3D300F)
 
 // Text
 val TextPrimary = Color(0xFFE8EAF6)

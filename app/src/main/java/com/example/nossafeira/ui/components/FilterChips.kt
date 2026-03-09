@@ -30,6 +30,8 @@ private val chipOptions = listOf(
     ChipOption("🥛 Laticínios", Categoria.LATICINIOS),
     ChipOption("🧹 Limpeza", Categoria.LIMPEZA),
     ChipOption("📦 Outros", Categoria.OUTROS),
+    ChipOption("🥩 Proteínas", Categoria.PROTEINAS),
+    ChipOption("🍞 Padaria", Categoria.PADARIA),
 )
 
 @Composable

@@ -53,8 +53,12 @@ import com.example.nossafeira.ui.theme.OrangeDim
 import com.example.nossafeira.ui.theme.Primary
 import com.example.nossafeira.ui.theme.PrimaryContainer
 import com.example.nossafeira.ui.theme.PrimaryDim
+import com.example.nossafeira.ui.theme.Pink
+import com.example.nossafeira.ui.theme.PinkDim
 import com.example.nossafeira.ui.theme.Purple
 import com.example.nossafeira.ui.theme.PurpleDim
+import com.example.nossafeira.ui.theme.Yellow
+import com.example.nossafeira.ui.theme.YellowDim
 import com.example.nossafeira.ui.theme.Surface
 import com.example.nossafeira.ui.theme.Surface2
 import com.example.nossafeira.ui.theme.TextPrimary
@@ -70,10 +74,12 @@ private data class CategoriaOption(
 )
 
 private val categoriaOptions = listOf(
-    CategoriaOption(Categoria.HORTIFRUTI, "🥬", "Hortifruti", Green, GreenDim),
+    CategoriaOption(Categoria.HORTIFRUTI, "🥬", "Hortifruti", Green,   GreenDim),
     CategoriaOption(Categoria.LATICINIOS, "🥛", "Laticínios", Primary, PrimaryContainer),
-    CategoriaOption(Categoria.LIMPEZA,    "🧹", "Limpeza",    Orange, OrangeDim),
-    CategoriaOption(Categoria.OUTROS,     "📦", "Outros",     Purple, PurpleDim),
+    CategoriaOption(Categoria.LIMPEZA,    "🧹", "Limpeza",    Orange,  OrangeDim),
+    CategoriaOption(Categoria.OUTROS,     "📦", "Outros",     Purple,  PurpleDim),
+    CategoriaOption(Categoria.PROTEINAS,  "🥩", "Proteínas",  Pink,    PinkDim),
+    CategoriaOption(Categoria.PADARIA,    "🍞", "Padaria",    Yellow,  YellowDim),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

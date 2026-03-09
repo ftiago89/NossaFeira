@@ -5,7 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-enum class Categoria { HORTIFRUTI, LATICINIOS, LIMPEZA, OUTROS }
+enum class Categoria { HORTIFRUTI, LATICINIOS, LIMPEZA, OUTROS, PROTEINAS, PADARIA }
 
 @Entity(
     tableName = "itens_feira",

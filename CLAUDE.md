@@ -85,7 +85,7 @@ data class ItemFeira(
     val criadoEm: Long = System.currentTimeMillis()
 )
 
-enum class Categoria { HORTIFRUTI, LATICINIOS, LIMPEZA, OUTROS }
+enum class Categoria { HORTIFRUTI, LATICINIOS, LIMPEZA, OUTROS, PROTEINAS, PADARIA }
 
 // Relação usada nas queries
 data class ListaComItens(
@@ -122,6 +122,8 @@ val Pink = Color(0xFFFF7DAA)
 val PinkDim = Color(0xFF3D1525)
 val Purple = Color(0xFFB47DFF)
 val PurpleDim = Color(0xFF2A1A3D)
+val Yellow = Color(0xFFFFD166)
+val YellowDim = Color(0xFF3D300F)
 
 val TextPrimary = Color(0xFFE8EAF6)
 val TextSecondary = Color(0xFF9DA3C4)
@@ -160,7 +162,7 @@ val TextTertiary = Color(0xFF5A6080)
 - Ícone de lupa + placeholder "Buscar item..."
 
 ### 3. FilterChips (LazyRow horizontal)
-- Chips: "Todos", "🥬 Hortifruti", "🥛 Laticínios", "🧹 Limpeza", "📦 Outros"
+- Chips: "Todos", "🥬 Hortifruti", "🥛 Laticínios", "🧹 Limpeza", "📦 Outros", "🥩 Proteínas", "🍞 Padaria"
 - Estado inativo: border 1.5dp Border, background transparente, texto TextSecondary
 - Estado ativo: background PrimaryContainer, border Primary, texto Primary
 - Padding: 6dp vertical, 14dp horizontal
@@ -202,6 +204,8 @@ val TextTertiary = Color(0xFF5A6080)
   - LATICINIOS → Primary
   - LIMPEZA → Orange
   - OUTROS → Purple
+  - PROTEINAS → Pink
+  - PADARIA → Yellow
 - Itens comprados: opacity 0.5, nome com strikethrough
 - **Long press** no card → abre `AddItemSheet` em modo edição (haptic feedback + `onLongClick`)
 
@@ -222,7 +226,7 @@ fun ItemCard(
 ```
 - **Checkbox**: radius 8dp, border 2dp Border; quando marcado: background Green, ícone ✓ branco
 - **EmojiBox**: background Surface2, radius 12dp, emoji 26sp
-  - HORTIFRUTI → 🥬 | LATICINIOS → 🥛 | LIMPEZA → 🧹 | OUTROS → 📦
+  - HORTIFRUTI → 🥬 | LATICINIOS → 🥛 | LIMPEZA → 🧹 | OUTROS → 📦 | PROTEINAS → 🥩 | PADARIA → 🍞
 - **Info**: nome do item (15sp semibold) + categoria (12sp, TextTertiary)
 - **Badges (Column)**: quantidade e preço empilhados verticalmente (Arrangement.spacedBy 4dp)
   - **Quantidade**: background Surface2, radius 8dp, padding 4dp×10dp, texto 13sp bold TextSecondary
@@ -249,9 +253,10 @@ fun ItemCard(
 - Input: background Surface2, border 1.5dp (Border normal / Primary em foco), radius 10dp
 - Campos: "Nome do item", "Quantidade" e "PREÇO R$ (OPCIONAL)" (teclado decimal, valor `Double`)
 
-#### Grade de categorias (2×2):
+#### Grade de categorias (2×N, chunked(2)):
 - Cada opção: border 1.5dp Border, radius 10dp, emoji + texto 13sp semibold
 - Quando selecionada, cada categoria tem cor própria (igual às cores das barras laterais)
+- Grid escala automaticamente para qualquer número de categorias via `chunked(2)` + `verticalScroll`
 
 #### Botão Adicionar / Salvar:
 - Background: Primary

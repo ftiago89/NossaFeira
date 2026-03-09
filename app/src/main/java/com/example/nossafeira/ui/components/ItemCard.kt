@@ -52,6 +52,8 @@ import com.example.nossafeira.ui.theme.Orange
 import com.example.nossafeira.ui.theme.Pink
 import com.example.nossafeira.ui.theme.PinkDim
 import com.example.nossafeira.ui.theme.Primary
+import com.example.nossafeira.ui.theme.Yellow
+import com.example.nossafeira.ui.theme.YellowDim
 import com.example.nossafeira.ui.theme.Purple
 import com.example.nossafeira.ui.theme.Surface
 import com.example.nossafeira.ui.theme.Surface2
@@ -64,6 +66,8 @@ private fun Categoria.cor() = when (this) {
     Categoria.LATICINIOS -> Primary
     Categoria.LIMPEZA    -> Orange
     Categoria.OUTROS     -> Purple
+    Categoria.PROTEINAS  -> Pink
+    Categoria.PADARIA    -> Yellow
 }
 
 private fun Categoria.emoji() = when (this) {
@@ -71,6 +75,8 @@ private fun Categoria.emoji() = when (this) {
     Categoria.LATICINIOS -> "🥛"
     Categoria.LIMPEZA    -> "🧹"
     Categoria.OUTROS     -> "📦"
+    Categoria.PROTEINAS  -> "🥩"
+    Categoria.PADARIA    -> "🍞"
 }
 
 private fun Categoria.label() = when (this) {
@@ -78,6 +84,8 @@ private fun Categoria.label() = when (this) {
     Categoria.LATICINIOS -> "Laticínios"
     Categoria.LIMPEZA    -> "Limpeza"
     Categoria.OUTROS     -> "Outros"
+    Categoria.PROTEINAS  -> "Proteínas"
+    Categoria.PADARIA    -> "Padaria"
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
