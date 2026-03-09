@@ -86,8 +86,8 @@ fun ItemCard(
     item: ItemFeira,
     onToggleComprado: () -> Unit,
     onDelete: () -> Unit,
-    onLongClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLongClick: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
 

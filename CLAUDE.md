@@ -203,6 +203,18 @@ val TextTertiary = Color(0xFF5A6080)
   - LIMPEZA → Orange
   - OUTROS → Purple
 - Itens comprados: opacity 0.5, nome com strikethrough
+- **Long press** no card → abre `AddItemSheet` em modo edição (haptic feedback + `onLongClick`)
+
+#### Assinatura:
+```kotlin
+fun ItemCard(
+    item: ItemFeira,
+    onToggleComprado: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: () -> Unit = {}
+)
+```
 
 #### Estrutura interna do ItemCard (horizontal):
 ```
@@ -227,7 +239,10 @@ val TextTertiary = Color(0xFF5A6080)
 - Handle: 36×4dp, background Surface3, radius 2dp, centralizado
 - Radius top: 28dp
 - Padding: 20dp laterais, 32dp bottom
-- Conteúdo com `verticalScroll(rememberScrollState())` para permitir scroll quando o teclado cobre o botão
+- Conteúdo com `verticalScroll` + `windowInsetsPadding(WindowInsets.ime)` — evita que o botão seja comprimido pelo teclado
+- Suporta **modo edição**: parâmetro `itemParaEditar: ItemFeira? = null`
+  - Quando não-nulo: pré-preenche os campos, título muda para "Editar item", botão para "Salvar alterações"
+  - Quando nulo: comportamento padrão de adição
 
 #### Campos:
 - Label de campo: 12sp semibold uppercase, cor TextSecondary, letter-spacing 0.5
@@ -238,7 +253,7 @@ val TextTertiary = Color(0xFF5A6080)
 - Cada opção: border 1.5dp Border, radius 10dp, emoji + texto 13sp semibold
 - Quando selecionada, cada categoria tem cor própria (igual às cores das barras laterais)
 
-#### Botão Adicionar:
+#### Botão Adicionar / Salvar:
 - Background: Primary
 - Texto: OnPrimary, 15sp bold
 - Radius: 16dp, largura total, padding 15dp vertical
@@ -267,8 +282,9 @@ val TextTertiary = Color(0xFF5A6080)
 - **Adicionar**: FAB → abre BottomSheet; validar nome não vazio e categoria selecionada
 - **Deletar item**: ícone lixeira (Pink) no final do ItemCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
 - **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
+- **Editar item**: long press no ItemCard → abre `AddItemSheet` em modo edição com campos pré-preenchidos; ao confirmar chama `ItensViewModel.editarItem`
 - **Animações**: itens entram com `slideIn` + `fadeIn` ao carregar a lista
-- **Feedback tátil**: `LocalHapticFeedback` ao marcar item como comprado
+- **Feedback tátil**: `LocalHapticFeedback` ao marcar item como comprado e ao acionar long press para edição
 
 ---
 
