@@ -8,5 +8,9 @@ data class ListaFeira(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val nome: String,
     val valorEstimado: Int = 0,
-    val criadaEm: Long = System.currentTimeMillis()
+    val criadaEm: Long = System.currentTimeMillis(),
+    val remoteId: String? = null,
+    val isShared: Boolean = false,
+    val updatedAt: Long = System.currentTimeMillis(),
+    val syncedAt: Long = 0L
 )

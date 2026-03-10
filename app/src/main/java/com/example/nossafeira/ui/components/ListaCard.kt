@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +48,7 @@ import com.example.nossafeira.ui.theme.Orange
 import com.example.nossafeira.ui.theme.Pink
 import com.example.nossafeira.ui.theme.PinkDim
 import com.example.nossafeira.ui.theme.Primary
+import com.example.nossafeira.ui.theme.Primary
 import com.example.nossafeira.ui.theme.Surface
 import com.example.nossafeira.ui.theme.Surface3
 import com.example.nossafeira.ui.theme.TextPrimary
@@ -58,6 +61,8 @@ fun ListaCard(
     listaComItens: ListaComItens,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onCompartilhar: () -> Unit = {},
+    onSincronizar: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val total = listaComItens.itens.size
@@ -162,19 +167,47 @@ fun ListaCard(
                 }
             }
 
-            // Botão de exclusão
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier
-                    .padding(end = 4.dp)
-                    .size(40.dp)
+            // Botões de ação
+            Column(
+                modifier = Modifier.padding(end = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Deletar lista",
-                    tint = Pink,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (listaComItens.lista.isShared) {
+                    IconButton(
+                        onClick = onSincronizar,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Sincronizar lista",
+                            tint = Primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = onCompartilhar,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Compartilhar lista",
+                            tint = Primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Deletar lista",
+                        tint = Pink,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

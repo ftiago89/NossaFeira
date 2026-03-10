@@ -6,18 +6,23 @@
 - Banco de dados: Room
 - Reatividade: StateFlow + Coroutines
 - Navegação: Navigation Compose
-- DI: Hilt
-- Min SDK: 26 | Target SDK: 34
+- Rede: Retrofit + OkHttp + Gson
+- DI: sem framework — dependências instanciadas manualmente nos ViewModels
+- Min SDK: 24 | Target SDK: 36
 
 ## Estrutura de Pastas
 
 ```
 app/src/main/java/com/example/nossafeira/
 ├── data/
-│   ├── db/          → NossaFeiraDatabase.kt (Room v3, com MIGRATION_1_2 e MIGRATION_2_3)
+│   ├── db/          → NossaFeiraDatabase.kt (Room v5, com MIGRATION_1_2 até MIGRATION_4_5)
 │   ├── model/       → ListaFeira.kt, ItemFeira.kt, ListaComItens.kt
 │   ├── dao/         → ListaFeiraDao.kt, ItemFeiraDao.kt
-│   └── repository/  → NossaFeiraRepository.kt
+│   ├── remote/
+│   │   ├── api/     → NossaFeiraApi.kt (interface Retrofit)
+│   │   ├── dto/     → ListaDto.kt, ItemDto.kt
+│   │   └── RemoteDataSource.kt (AuthInterceptor + Retrofit)
+│   └── repository/  → NossaFeiraRepository.kt, SyncResult.kt
 ├── ui/
 │   ├── screens/
 │   │   ├── listas/  → ListasScreen.kt (tela inicial com cards de listas)
@@ -33,7 +38,8 @@ app/src/main/java/com/example/nossafeira/
 │   └── theme/       → Color.kt, Type.kt, Theme.kt
 ├── viewmodel/
 │   ├── ListasViewModel.kt
-│   └── ItensViewModel.kt
+│   ├── ItensViewModel.kt
+│   └── SyncEvento.kt
 ├── navigation/      → NossaFeiraNavGraph.kt
 └── MainActivity.kt
 ```
@@ -61,7 +67,11 @@ data class ListaFeira(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val nome: String,
     val valorEstimado: Int = 0,          // em centavos (ex: R$ 9,99 → 999)
-    val criadaEm: Long = System.currentTimeMillis()
+    val criadaEm: Long = System.currentTimeMillis(),
+    val remoteId: String? = null,        // ID no MongoDB; null = lista local (não compartilhada)
+    val isShared: Boolean = false,       // controla UI: botão compartilhar vs ícone de sync
+    val updatedAt: Long = System.currentTimeMillis(), // atualizado em toda modificação local
+    val syncedAt: Long = 0L             // timestamp do último sync bem-sucedido com o backend
 )
 
 // ItemFeira.kt
@@ -83,7 +93,8 @@ data class ItemFeira(
     val categoria: Categoria,
     val preco: Int = 0,             // em centavos (ex: R$ 9,99 → 999); adicionado na v2, convertido na v3
     val comprado: Boolean = false,
-    val criadoEm: Long = System.currentTimeMillis()
+    val criadoEm: Long = System.currentTimeMillis(),
+    val remoteItemId: String = UUID.randomUUID().toString() // UUID estável para identificar o item no backend
 )
 
 enum class Categoria { HORTIFRUTI, LATICINIOS, LIMPEZA, OUTROS, PROTEINAS, PADARIA }
@@ -188,7 +199,11 @@ val TextTertiary = Color(0xFF5A6080)
 - Radius: 16dp
 - Padding: 16dp
 - Conteúdo:
-  - Linha superior: Nome da lista (17sp bold, TextPrimary) + botão delete (IconButton 40×40dp, ícone `Icons.Default.Delete` 20dp, cor Pink, padding end 4dp)
+  - Área principal (clicável): nome, progresso, valores, barra
+  - Coluna de botões no canto direito (empilhados):
+    - `!isShared` → ícone `Share` (Primary, 20dp) — chama `onCompartilhar`
+    - `isShared` → ícone `Refresh` (Primary, 20dp) — chama `onSincronizar`
+    - Ícone `Delete` (Pink, 20dp) — chama `onDelete`
   - Linha de progresso: "X de Y itens comprados" (13sp, TextSecondary)
   - Valor estimado: se > 0, exibir "Estimado: R$ X,XX" (13sp, TextTertiary)
   - Valor gasto real: se > 0, exibir "Gasto: R$ X,XX" (13sp, Green) — calculado via `calcularTotalGasto(itens)`

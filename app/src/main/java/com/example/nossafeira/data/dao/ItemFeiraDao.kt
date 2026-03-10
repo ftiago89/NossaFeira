@@ -35,4 +35,10 @@ interface ItemFeiraDao {
 
     @Query("UPDATE itens_feira SET comprado = :comprado WHERE id = :id")
     suspend fun atualizarComprado(id: Int, comprado: Boolean)
+
+    @Query("DELETE FROM itens_feira WHERE listaId = :listaId")
+    suspend fun deletarPorLista(listaId: Int)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun inserirTodos(itens: List<ItemFeira>)
 }

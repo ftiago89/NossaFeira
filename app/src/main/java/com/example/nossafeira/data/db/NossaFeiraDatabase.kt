@@ -72,9 +72,33 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE listas_feira ADD COLUMN remoteId TEXT")
+        db.execSQL("ALTER TABLE listas_feira ADD COLUMN isShared INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE listas_feira ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE listas_feira ADD COLUMN syncedAt INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+private val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE itens_feira ADD COLUMN remoteItemId TEXT NOT NULL DEFAULT ''")
+        db.execSQL("""
+            UPDATE itens_feira SET remoteItemId =
+                lower(hex(randomblob(4))) || '-' ||
+                lower(hex(randomblob(2))) || '-4' ||
+                substr(lower(hex(randomblob(2))), 2) || '-' ||
+                substr('89ab', abs(random()) % 4 + 1, 1) ||
+                substr(lower(hex(randomblob(2))), 2) || '-' ||
+                lower(hex(randomblob(6)))
+        """.trimIndent())
+    }
+}
+
 @Database(
     entities = [ListaFeira::class, ItemFeira::class],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(CategoriaConverter::class)
@@ -96,7 +120,7 @@ abstract class NossaFeiraDatabase : RoomDatabase() {
                     NossaFeiraDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build().also { INSTANCE = it }
             }
     }

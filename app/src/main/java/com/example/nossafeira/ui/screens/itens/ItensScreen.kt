@@ -131,7 +131,7 @@ fun ItensScreen(
                     ItemCard(
                         item = item,
                         onToggleComprado = { viewModel.toggleComprado(item) },
-                        onDelete = { viewModel.deletarItem(item.id) },
+                        onDelete = { viewModel.deletarItem(item) },
                         onLongClick = { itemParaEditar = item },
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 4.dp)

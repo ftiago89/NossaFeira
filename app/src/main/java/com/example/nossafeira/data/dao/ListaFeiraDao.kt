@@ -36,4 +36,20 @@ interface ListaFeiraDao {
 
     @Query("DELETE FROM listas_feira WHERE id = :id")
     suspend fun deletarPorId(id: Int)
+
+    @Query("UPDATE listas_feira SET updatedAt = :timestamp WHERE id = :id")
+    suspend fun atualizarUpdatedAt(id: Int, timestamp: Long)
+
+    @Query("UPDATE listas_feira SET remoteId = :remoteId, isShared = 1, syncedAt = :syncedAt WHERE id = :id")
+    suspend fun atualizarCompartilhamento(id: Int, remoteId: String, syncedAt: Long)
+
+    @Query("UPDATE listas_feira SET syncedAt = :syncedAt WHERE id = :id")
+    suspend fun atualizarSyncedAt(id: Int, syncedAt: Long)
+
+    @Query("UPDATE listas_feira SET isShared = 0, remoteId = NULL WHERE id = :id")
+    suspend fun marcarComoLocal(id: Int)
+
+    @Transaction
+    @Query("SELECT * FROM listas_feira WHERE remoteId = :remoteId")
+    suspend fun buscarPorRemoteId(remoteId: String): ListaComItens?
 }

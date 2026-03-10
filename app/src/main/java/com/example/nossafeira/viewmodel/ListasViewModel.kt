@@ -6,11 +6,16 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.nossafeira.data.db.NossaFeiraDatabase
 import com.example.nossafeira.data.model.ListaComItens
+import com.example.nossafeira.data.model.ListaFeira
 import com.example.nossafeira.data.repository.NossaFeiraRepository
+import com.example.nossafeira.data.repository.SyncResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,6 +41,13 @@ class ListasViewModel(application: Application) : AndroidViewModel(application) 
             else listas.filter { it.lista.nome.contains(busca, ignoreCase = true) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private val _syncEvento = MutableSharedFlow<SyncEvento>()
+    val syncEvento: SharedFlow<SyncEvento> = _syncEvento.asSharedFlow()
+
+    init {
+        pullStartup()
+    }
+
     // ── Ações ─────────────────────────────────────────────────────────────────
 
     fun criarLista(nome: String, valorEstimado: Int = 0) {
@@ -45,14 +57,49 @@ class ListasViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun deletarLista(id: Int) {
+    fun deletarLista(listaComItens: ListaComItens) {
         viewModelScope.launch {
-            repository.deletarLista(id)
+            if (listaComItens.lista.isShared) {
+                runCatching { repository.deletarListaCompartilhada(listaComItens.lista) }
+                    .onFailure { repository.deletarLista(listaComItens.lista.id) }
+            } else {
+                repository.deletarLista(listaComItens.lista.id)
+            }
+        }
+    }
+
+    fun compartilharLista(listaComItens: ListaComItens) {
+        viewModelScope.launch {
+            runCatching { repository.compartilharLista(listaComItens) }
+                .onSuccess { _syncEvento.emit(SyncEvento.Compartilhada) }
+                .onFailure { _syncEvento.emit(SyncEvento.ErroRede) }
+        }
+    }
+
+    fun sincronizarLista(listaComItens: ListaComItens) {
+        viewModelScope.launch {
+            runCatching { repository.sincronizarLista(listaComItens) }
+                .onSuccess { result ->
+                    val evento = when (result) {
+                        SyncResult.Sucesso   -> SyncEvento.Sincronizada
+                        SyncResult.Conflito  -> SyncEvento.Conflito
+                        SyncResult.Erro      -> SyncEvento.ErroRede
+                    }
+                    _syncEvento.emit(evento)
+                }
+                .onFailure { _syncEvento.emit(SyncEvento.ErroRede) }
         }
     }
 
     fun atualizarBusca(query: String) {
         _busca.value = query
+    }
+
+    private fun pullStartup() {
+        viewModelScope.launch {
+            runCatching { repository.pullStartup() }
+            // silencioso — erros de rede no startup não são exibidos ao usuário
+        }
     }
 
     // ── Factory ───────────────────────────────────────────────────────────────

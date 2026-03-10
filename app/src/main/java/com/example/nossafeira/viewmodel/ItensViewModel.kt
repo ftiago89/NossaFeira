@@ -71,9 +71,9 @@ class ItensViewModel(
         }
     }
 
-    fun deletarItem(id: Int) {
+    fun deletarItem(item: ItemFeira) {
         viewModelScope.launch {
-            repository.deletarItem(id)
+            repository.deletarItem(item)
         }
     }
 

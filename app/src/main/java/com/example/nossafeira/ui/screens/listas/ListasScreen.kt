@@ -1,6 +1,7 @@
 package com.example.nossafeira.ui.screens.listas
 
 import android.app.Application
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +58,7 @@ import com.example.nossafeira.ui.theme.TextPrimary
 import com.example.nossafeira.ui.theme.TextSecondary
 import com.example.nossafeira.ui.theme.TextTertiary
 import com.example.nossafeira.viewmodel.ListasViewModel
+import com.example.nossafeira.viewmodel.SyncEvento
 
 @Composable
 fun ListasScreen(onListaClick: (Int) -> Unit) {
@@ -65,6 +68,19 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
     val listas by viewModel.listas.collectAsStateWithLifecycle()
     val busca by viewModel.busca.collectAsStateWithLifecycle()
     var mostrarAddSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.syncEvento.collect { evento ->
+            val mensagem = when (evento) {
+                SyncEvento.Compartilhada -> "Lista compartilhada com sucesso."
+                SyncEvento.Sincronizada  -> "Lista sincronizada com sucesso."
+                SyncEvento.Conflito      -> "Lista atualizada. Suas alterações locais foram substituídas."
+                SyncEvento.ErroRede      -> "Falha na sincronização. Verifique sua conexão."
+            }
+            Toast.makeText(context, mensagem, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Scaffold(
         containerColor = Background,
@@ -108,7 +124,9 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
                         ListaCard(
                             listaComItens = listaComItens,
                             onClick = { onListaClick(listaComItens.lista.id) },
-                            onDelete = { viewModel.deletarLista(listaComItens.lista.id) },
+                            onDelete = { viewModel.deletarLista(listaComItens) },
+                            onCompartilhar = { viewModel.compartilharLista(listaComItens) },
+                            onSincronizar = { viewModel.sincronizarLista(listaComItens) },
                             modifier = Modifier
                                 .padding(horizontal = 16.dp)
                                 .animateItem()

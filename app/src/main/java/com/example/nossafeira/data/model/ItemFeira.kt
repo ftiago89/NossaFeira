@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 enum class Categoria { HORTIFRUTI, LATICINIOS, LIMPEZA, OUTROS, PROTEINAS, PADARIA }
 
@@ -25,5 +26,6 @@ data class ItemFeira(
     val categoria: Categoria,
     val preco: Int = 0,
     val comprado: Boolean = false,
-    val criadoEm: Long = System.currentTimeMillis()
+    val criadoEm: Long = System.currentTimeMillis(),
+    val remoteItemId: String = UUID.randomUUID().toString()
 )
