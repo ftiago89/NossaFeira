@@ -41,7 +41,7 @@ class ItensViewModel(
 
     // ── Ações ─────────────────────────────────────────────────────────────────
 
-    fun adicionarItem(nome: String, quantidade: String, categoria: Categoria, preco: Double = 0.0) {
+    fun adicionarItem(nome: String, quantidade: String, categoria: Categoria, preco: Int = 0) {
         if (nome.isBlank()) return
         viewModelScope.launch {
             repository.adicionarItem(
@@ -56,7 +56,7 @@ class ItensViewModel(
         }
     }
 
-    fun editarItem(item: ItemFeira, nome: String, quantidade: String, categoria: Categoria, preco: Double) {
+    fun editarItem(item: ItemFeira, nome: String, quantidade: String, categoria: Categoria, preco: Int) {
         if (nome.isBlank()) return
         viewModelScope.launch {
             repository.atualizarItem(

@@ -7,6 +7,6 @@ import androidx.room.PrimaryKey
 data class ListaFeira(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val nome: String,
-    val valorEstimado: Double = 0.0,
+    val valorEstimado: Int = 0,
     val criadaEm: Long = System.currentTimeMillis()
 )

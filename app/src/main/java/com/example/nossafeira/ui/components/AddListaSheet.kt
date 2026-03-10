@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,7 +51,7 @@ import com.example.nossafeira.ui.theme.TextTertiary
 @Composable
 fun AddListaSheet(
     onDismiss: () -> Unit,
-    onConfirm: (nome: String, valorEstimado: Double) -> Unit
+    onConfirm: (nome: String, valorEstimado: Int) -> Unit
 ) {
     var nome by remember { mutableStateOf("") }
     var valorTexto by remember { mutableStateOf("") }
@@ -76,7 +77,7 @@ fun AddListaSheet(
             onNomeFocusChange = { nomeFocado = it },
             onValorFocusChange = { valorFocado = it },
             onConfirm = {
-                val valor = valorTexto.replace(",", ".").toDoubleOrNull() ?: 0.0
+                val valor = ((valorTexto.replace(",", ".").toDoubleOrNull() ?: 0.0) * 100).roundToInt()
                 onConfirm(nome.trim(), valor)
             }
         )

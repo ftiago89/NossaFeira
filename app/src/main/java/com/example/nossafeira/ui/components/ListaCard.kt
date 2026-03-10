@@ -37,8 +37,10 @@ import com.example.nossafeira.data.model.Categoria
 import com.example.nossafeira.data.model.ItemFeira
 import com.example.nossafeira.data.model.ListaComItens
 import com.example.nossafeira.data.model.ListaFeira
+import com.example.nossafeira.ui.utils.calcularTotalGasto
 import com.example.nossafeira.ui.theme.Border
 import com.example.nossafeira.ui.theme.Green
+import com.example.nossafeira.ui.theme.GreenDim
 import com.example.nossafeira.ui.theme.NossaFeiraTheme
 import com.example.nossafeira.ui.theme.Orange
 import com.example.nossafeira.ui.theme.Pink
@@ -61,6 +63,7 @@ fun ListaCard(
     val total = listaComItens.itens.size
     val comprados = listaComItens.itens.count { it.comprado }
     val progresso = if (total > 0) comprados.toFloat() / total else 0f
+    val totalGasto = calcularTotalGasto(listaComItens.itens)
 
     val corAlvo = when {
         progresso >= 0.67f -> Green
@@ -127,11 +130,19 @@ fun ListaCard(
                     color = TextSecondary
                 )
 
-                if (listaComItens.lista.valorEstimado > 0.0) {
+                if (listaComItens.lista.valorEstimado > 0) {
                     Text(
-                        text = "R$ %.2f".format(listaComItens.lista.valorEstimado),
+                        text = "Estimado: R$ %.2f".format(listaComItens.lista.valorEstimado / 100.0),
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextTertiary
+                    )
+                }
+
+                if (totalGasto > 0) {
+                    Text(
+                        text = "Gasto: R$ %.2f".format(totalGasto / 100.0),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Green
                     )
                 }
 
@@ -175,10 +186,10 @@ private fun ListaCardPreview() {
     NossaFeiraTheme {
         ListaCard(
             listaComItens = ListaComItens(
-                lista = ListaFeira(id = 1, nome = "Feira da semana", valorEstimado = 150.0),
+                lista = ListaFeira(id = 1, nome = "Feira da semana", valorEstimado = 15000),
                 itens = listOf(
-                    ItemFeira(1, 1, "Alface", "1 un", Categoria.HORTIFRUTI, comprado = true),
-                    ItemFeira(2, 1, "Leite", "2 L", Categoria.LATICINIOS, comprado = true),
+                    ItemFeira(1, 1, "Alface", "1 un", Categoria.HORTIFRUTI, preco = 299, comprado = true),
+                    ItemFeira(2, 1, "Leite", "2 L", Categoria.LATICINIOS, preco = 599, comprado = true),
                     ItemFeira(3, 1, "Sabão", "1 kg", Categoria.LIMPEZA, comprado = false),
                     ItemFeira(4, 1, "Arroz", "5 kg", Categoria.OUTROS, comprado = false),
                 )

@@ -23,7 +23,7 @@ data class ItemFeira(
     val nome: String,
     val quantidade: String,
     val categoria: Categoria,
-    val preco: Double = 0.0,
+    val preco: Int = 0,
     val comprado: Boolean = false,
     val criadoEm: Long = System.currentTimeMillis()
 )

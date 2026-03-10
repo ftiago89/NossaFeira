@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -86,7 +87,7 @@ private val categoriaOptions = listOf(
 @Composable
 fun AddItemSheet(
     onDismiss: () -> Unit,
-    onConfirm: (nome: String, quantidade: String, categoria: Categoria, preco: Double) -> Unit,
+    onConfirm: (nome: String, quantidade: String, categoria: Categoria, preco: Int) -> Unit,
     itemParaEditar: ItemFeira? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -102,8 +103,8 @@ fun AddItemSheet(
             onConfirm = onConfirm,
             nomeInicial = itemParaEditar?.nome ?: "",
             quantidadeInicial = itemParaEditar?.quantidade ?: "",
-            precoInicial = if ((itemParaEditar?.preco ?: 0.0) > 0.0)
-                "%.2f".format(itemParaEditar!!.preco).replace('.', ',') else "",
+            precoInicial = if ((itemParaEditar?.preco ?: 0) > 0)
+                "%.2f".format(itemParaEditar!!.preco / 100.0).replace('.', ',') else "",
             categoriaInicial = itemParaEditar?.categoria,
             modoEdicao = itemParaEditar != null
         )
@@ -112,7 +113,7 @@ fun AddItemSheet(
 
 @Composable
 private fun AddItemSheetContent(
-    onConfirm: (nome: String, quantidade: String, categoria: Categoria, preco: Double) -> Unit,
+    onConfirm: (nome: String, quantidade: String, categoria: Categoria, preco: Int) -> Unit,
     nomeInicial: String = "",
     quantidadeInicial: String = "",
     precoInicial: String = "",
@@ -242,7 +243,7 @@ private fun AddItemSheetContent(
         val podeSalvar = nome.isNotBlank() && categoriaEscolhida != null
         Button(
             onClick = {
-                val preco = precoTexto.replace(",", ".").toDoubleOrNull() ?: 0.0
+                val preco = ((precoTexto.replace(",", ".").toDoubleOrNull() ?: 0.0) * 100).roundToInt()
                 onConfirm(nome.trim(), quantidade.trim(), categoriaEscolhida!!, preco)
             },
             enabled = podeSalvar,

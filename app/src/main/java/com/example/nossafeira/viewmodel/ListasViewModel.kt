@@ -38,7 +38,7 @@ class ListasViewModel(application: Application) : AndroidViewModel(application) 
 
     // ── Ações ─────────────────────────────────────────────────────────────────
 
-    fun criarLista(nome: String, valorEstimado: Double = 0.0) {
+    fun criarLista(nome: String, valorEstimado: Int = 0) {
         if (nome.isBlank()) return
         viewModelScope.launch {
             repository.criarLista(nome.trim(), valorEstimado)

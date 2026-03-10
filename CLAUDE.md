@@ -14,7 +14,7 @@
 ```
 app/src/main/java/com/example/nossafeira/
 ├── data/
-│   ├── db/          → NossaFeiraDatabase.kt (Room v2, com MIGRATION_1_2)
+│   ├── db/          → NossaFeiraDatabase.kt (Room v3, com MIGRATION_1_2 e MIGRATION_2_3)
 │   ├── model/       → ListaFeira.kt, ItemFeira.kt, ListaComItens.kt
 │   ├── dao/         → ListaFeiraDao.kt, ItemFeiraDao.kt
 │   └── repository/  → NossaFeiraRepository.kt
@@ -29,6 +29,7 @@ app/src/main/java/com/example/nossafeira/
 │   │   ├── AddItemSheet.kt
 │   │   ├── AddListaSheet.kt
 │   │   └── FilterChips.kt
+│   ├── utils/       → PrecoUtils.kt (extrairQuantidadeNumerica, calcularTotalGasto)
 │   └── theme/       → Color.kt, Type.kt, Theme.kt
 ├── viewmodel/
 │   ├── ListasViewModel.kt
@@ -59,7 +60,7 @@ ListasScreen  ──(toque no card)──▶  ItensScreen(listaId)
 data class ListaFeira(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val nome: String,
-    val valorEstimado: Double = 0.0,
+    val valorEstimado: Int = 0,          // em centavos (ex: R$ 9,99 → 999)
     val criadaEm: Long = System.currentTimeMillis()
 )
 
@@ -80,7 +81,7 @@ data class ItemFeira(
     val nome: String,
     val quantidade: String,
     val categoria: Categoria,
-    val preco: Double = 0.0,        // adicionado na v2 (MIGRATION_1_2)
+    val preco: Int = 0,             // em centavos (ex: R$ 9,99 → 999); adicionado na v2, convertido na v3
     val comprado: Boolean = false,
     val criadoEm: Long = System.currentTimeMillis()
 )
@@ -189,7 +190,8 @@ val TextTertiary = Color(0xFF5A6080)
 - Conteúdo:
   - Linha superior: Nome da lista (17sp bold, TextPrimary) + botão delete (IconButton 40×40dp, ícone `Icons.Default.Delete` 20dp, cor Pink, padding end 4dp)
   - Linha de progresso: "X de Y itens comprados" (13sp, TextSecondary)
-  - Valor estimado: se > 0, exibir "R$ X,XX" (13sp, TextTertiary)
+  - Valor estimado: se > 0, exibir "Estimado: R$ X,XX" (13sp, TextTertiary)
+  - Valor gasto real: se > 0, exibir "Gasto: R$ X,XX" (13sp, Green) — calculado via `calcularTotalGasto(itens)`
   - ProgressBar fina (4dp) mostrando % de itens comprados
   - Cor da barra varia: 0-33% → Orange, 34-66% → Primary, 67-100% → Green
 - Toque no card → navega para ItensScreen passando o listaId
@@ -251,7 +253,7 @@ fun ItemCard(
 #### Campos:
 - Label de campo: 12sp semibold uppercase, cor TextSecondary, letter-spacing 0.5
 - Input: background Surface2, border 1.5dp (Border normal / Primary em foco), radius 10dp
-- Campos: "Nome do item", "Quantidade" e "PREÇO R$ (OPCIONAL)" (teclado decimal, valor `Double`)
+- Campos: "Nome do item", "Quantidade" e "PREÇO R$ (OPCIONAL)" (teclado decimal, convertido para `Int` em centavos)
 
 #### Grade de categorias (2×N, chunked(2)):
 - Cada opção: border 1.5dp Border, radius 10dp, emoji + texto 13sp semibold

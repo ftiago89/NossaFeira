@@ -21,7 +21,7 @@ class NossaFeiraRepository(
     fun observarListaPorId(id: Int): Flow<ListaComItens?> =
         listaDao.observarPorId(id)
 
-    suspend fun criarLista(nome: String, valorEstimado: Double = 0.0): Long =
+    suspend fun criarLista(nome: String, valorEstimado: Int = 0): Long =
         listaDao.inserir(ListaFeira(nome = nome, valorEstimado = valorEstimado))
 
     suspend fun atualizarLista(lista: ListaFeira) =

@@ -230,7 +230,7 @@ fun ItemCard(
                             color = TextSecondary
                         )
                     }
-                    if (item.preco > 0.0) {
+                    if (item.preco > 0) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
@@ -238,7 +238,7 @@ fun ItemCard(
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "R$ ${"%.2f".format(item.preco).replace('.', ',')}",
+                                text = "R$ ${"%.2f".format(item.preco / 100.0).replace('.', ',')}",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Green
                             )
@@ -268,7 +268,7 @@ fun ItemCard(
 private fun ItemCardHortifrutiPreview() {
     NossaFeiraTheme {
         ItemCard(
-            item = ItemFeira(1, 1, "Alface crespa", "2 un", Categoria.HORTIFRUTI, preco = 3.50),
+            item = ItemFeira(1, 1, "Alface crespa", "2 un", Categoria.HORTIFRUTI, preco = 350),
             onToggleComprado = {},
             onDelete = {},
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)

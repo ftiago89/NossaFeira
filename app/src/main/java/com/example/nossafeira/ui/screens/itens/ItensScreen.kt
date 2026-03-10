@@ -52,6 +52,8 @@ import com.example.nossafeira.ui.theme.Surface
 import com.example.nossafeira.ui.theme.TextPrimary
 import com.example.nossafeira.ui.theme.TextSecondary
 import com.example.nossafeira.ui.theme.TextTertiary
+import com.example.nossafeira.ui.utils.calcularTotalGasto
+import com.example.nossafeira.ui.utils.extrairQuantidadeNumerica
 import com.example.nossafeira.viewmodel.ItensViewModel
 
 @Composable
@@ -73,9 +75,7 @@ fun ItensScreen(
 
     val totalItens = listaComItens?.itens?.size ?: 0
     val itensComprados = listaComItens?.itens?.count { it.comprado } ?: 0
-    val totalGasto = listaComItens?.itens
-        ?.filter { it.comprado && it.preco > 0.0 }
-        ?.sumOf { it.preco * extrairQuantidadeNumerica(it.quantidade) } ?: 0.0
+    val totalGasto = calcularTotalGasto(listaComItens?.itens ?: emptyList())
 
     Scaffold(
         containerColor = Background,
@@ -163,19 +163,6 @@ fun ItensScreen(
         )
     }
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Extrai o número inicial de uma string de quantidade livre.
- * "2 un" → 2.0 | "1,5 kg" → 1.5 | "3" → 3.0 | "texto" → 1.0
- */
-private fun extrairQuantidadeNumerica(quantidade: String): Double =
-    quantidade.trim()
-        .takeWhile { it.isDigit() || it == ',' || it == '.' }
-        .replace(',', '.')
-        .toDoubleOrNull()
-        ?.takeIf { it > 0.0 } ?: 1.0
 
 // ── TopBar ────────────────────────────────────────────────────────────────────
 
@@ -302,7 +289,7 @@ private fun ItensEstadoVazioFiltroPreview() {
 private fun ItensSummaryPreview() {
     NossaFeiraTheme {
         Column(modifier = Modifier.padding(16.dp)) {
-            SummaryCard(totalItens = 10, itensComprados = 3, totalGasto = 32.50)
+            SummaryCard(totalItens = 10, itensComprados = 3, totalGasto = 3250)
             Spacer(Modifier.height(12.dp))
             FilterChips(
                 filtroAtivo = Categoria.LATICINIOS,

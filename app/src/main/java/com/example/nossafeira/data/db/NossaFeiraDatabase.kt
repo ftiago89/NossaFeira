@@ -28,9 +28,53 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // listas_feira: valorEstimado REAL → INTEGER (centavos)
+        db.execSQL("""
+            CREATE TABLE listas_feira_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                nome TEXT NOT NULL,
+                valorEstimado INTEGER NOT NULL DEFAULT 0,
+                criadaEm INTEGER NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("""
+            INSERT INTO listas_feira_new (id, nome, valorEstimado, criadaEm)
+            SELECT id, nome, CAST(ROUND(valorEstimado * 100) AS INTEGER), criadaEm
+            FROM listas_feira
+        """.trimIndent())
+        db.execSQL("DROP TABLE listas_feira")
+        db.execSQL("ALTER TABLE listas_feira_new RENAME TO listas_feira")
+
+        // itens_feira: preco REAL → INTEGER (centavos)
+        db.execSQL("""
+            CREATE TABLE itens_feira_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                listaId INTEGER NOT NULL,
+                nome TEXT NOT NULL,
+                quantidade TEXT NOT NULL,
+                categoria TEXT NOT NULL,
+                preco INTEGER NOT NULL DEFAULT 0,
+                comprado INTEGER NOT NULL DEFAULT 0,
+                criadoEm INTEGER NOT NULL,
+                FOREIGN KEY (listaId) REFERENCES listas_feira(id) ON DELETE CASCADE
+            )
+        """.trimIndent())
+        db.execSQL("""
+            INSERT INTO itens_feira_new (id, listaId, nome, quantidade, categoria, preco, comprado, criadoEm)
+            SELECT id, listaId, nome, quantidade, categoria, CAST(ROUND(preco * 100) AS INTEGER), comprado, criadoEm
+            FROM itens_feira
+        """.trimIndent())
+        db.execSQL("DROP TABLE itens_feira")
+        db.execSQL("ALTER TABLE itens_feira_new RENAME TO itens_feira")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_itens_feira_listaId ON itens_feira(listaId)")
+    }
+}
+
 @Database(
     entities = [ListaFeira::class, ItemFeira::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(CategoriaConverter::class)
@@ -52,7 +96,7 @@ abstract class NossaFeiraDatabase : RoomDatabase() {
                     NossaFeiraDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build().also { INSTANCE = it }
             }
     }

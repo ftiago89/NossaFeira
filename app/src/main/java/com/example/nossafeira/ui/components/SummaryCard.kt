@@ -37,7 +37,7 @@ import com.example.nossafeira.ui.theme.TextSecondary
 fun SummaryCard(
     totalItens: Int,
     itensComprados: Int,
-    totalGasto: Double = 0.0,
+    totalGasto: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val progresso = if (totalItens > 0) itensComprados.toFloat() / totalItens else 0f
@@ -93,7 +93,7 @@ fun SummaryCard(
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
                     color = TextPrimary
                 )
-                if (totalGasto > 0.0) {
+                if (totalGasto > 0) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
@@ -101,7 +101,7 @@ fun SummaryCard(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "R$ %.2f".format(totalGasto),
+                            text = "R$ %.2f".format(totalGasto / 100.0),
                             style = MaterialTheme.typography.bodySmall,
                             color = Green
                         )
@@ -134,7 +134,7 @@ private fun SummaryCardPreview() {
         SummaryCard(
             totalItens = 12,
             itensComprados = 5,
-            totalGasto = 47.90,
+            totalGasto = 4790,
             modifier = Modifier.padding(16.dp)
         )
     }
