@@ -55,6 +55,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nossafeira.data.model.ListaComItens
 import com.example.nossafeira.ui.components.AddListaSheet
 import com.example.nossafeira.ui.components.ListaCard
 import com.example.nossafeira.ui.theme.Background
@@ -78,6 +79,7 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
     val busca by viewModel.busca.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     var mostrarAddSheet by remember { mutableStateOf(false) }
+    var listaParaEditar by remember { mutableStateOf<ListaComItens?>(null) }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
@@ -144,6 +146,7 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
                             onDelete = { viewModel.deletarLista(listaComItens) },
                             onCompartilhar = { viewModel.compartilharLista(listaComItens) },
                             onSincronizar = { viewModel.sincronizarLista(listaComItens) },
+                            onEditar = { listaParaEditar = listaComItens },
                             modifier = Modifier
                                 .padding(horizontal = 16.dp)
                                 .animateItem()
@@ -161,6 +164,21 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
                 viewModel.criarLista(nome, valorEstimado)
                 mostrarAddSheet = false
             }
+        )
+    }
+
+    listaParaEditar?.let { lci ->
+        val valorTexto = if (lci.lista.valorEstimado > 0)
+            "%.2f".format(lci.lista.valorEstimado / 100.0).replace('.', ',') else ""
+        AddListaSheet(
+            onDismiss = { listaParaEditar = null },
+            onConfirm = { nome, valorEstimado ->
+                viewModel.editarLista(lci.lista, nome, valorEstimado)
+                listaParaEditar = null
+            },
+            nomeInicial = lci.lista.nome,
+            valorInicial = valorTexto,
+            modoEdicao = true
         )
     }
 }

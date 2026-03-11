@@ -33,7 +33,7 @@ class NossaFeiraRepository(
         listaDao.inserir(ListaFeira(nome = nome, valorEstimado = valorEstimado))
 
     suspend fun atualizarLista(lista: ListaFeira) =
-        listaDao.atualizar(lista)
+        listaDao.atualizar(lista.copy(updatedAt = System.currentTimeMillis()))
 
     suspend fun deletarLista(id: Int) =
         listaDao.deletarPorId(id)

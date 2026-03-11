@@ -94,6 +94,13 @@ class ListasViewModel(
         }
     }
 
+    fun editarLista(lista: ListaFeira, novoNome: String, novoValor: Int) {
+        if (novoNome.isBlank()) return
+        viewModelScope.launch {
+            repository.atualizarLista(lista.copy(nome = novoNome.trim(), valorEstimado = novoValor))
+        }
+    }
+
     fun atualizarBusca(query: String) {
         _busca.value = query
     }

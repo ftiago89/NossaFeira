@@ -223,6 +223,20 @@ val TextTertiary = Color(0xFF5A6080)
   - ProgressBar fina (4dp) mostrando % de itens comprados
   - Cor da barra varia: 0-33% → Orange, 34-66% → Primary, 67-100% → Green
 - Toque no card → navega para ItensScreen passando o listaId
+- **Long press** na área principal → abre `AddListaSheet` em modo edição (haptic feedback + `onEditar`)
+
+#### Assinatura:
+```kotlin
+fun ListaCard(
+    listaComItens: ListaComItens,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    onCompartilhar: () -> Unit = {},
+    onSincronizar: () -> Unit = {},
+    onEditar: () -> Unit = {},
+    modifier: Modifier = Modifier
+)
+```
 
 ### 6. ItemCard
 - Background: Surface
@@ -266,6 +280,9 @@ fun ItemCard(
 ### 7. AddListaSheet (ModalBottomSheet — tela inicial)
 - Campos: "Nome da lista" (obrigatório) e "Valor estimado R$" (opcional, numérico)
 - Botão: "Criar lista"
+- Suporta **modo edição**: parâmetros `nomeInicial`, `valorInicial` e `modoEdicao: Boolean`
+  - Quando `modoEdicao = true`: título muda para "Editar lista", botão para "Salvar alterações", campos pré-preenchidos
+  - Quando `false`: comportamento padrão de criação
 
 ### 8. AddItemSheet (ModalBottomSheet)
 - Background: Surface
@@ -318,6 +335,7 @@ fun ItemCard(
 - **Deletar item**: ícone lixeira (Pink) no final do ItemCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
 - **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
 - **Editar item**: long press no ItemCard → abre `AddItemSheet` em modo edição com campos pré-preenchidos; ao confirmar chama `ItensViewModel.editarItem`
+- **Editar lista**: long press no ListaCard → abre `AddListaSheet` em modo edição com nome e valor pré-preenchidos; ao confirmar chama `ListasViewModel.editarLista` — atualiza `updatedAt`, propagando a mudança no sync
 - **Animações**: itens entram com `slideIn` + `fadeIn` ao carregar a lista
 - **Feedback tátil**: `LocalHapticFeedback` ao marcar item como comprado e ao acionar long press para edição
 

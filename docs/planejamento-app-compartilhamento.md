@@ -223,6 +223,7 @@ fun sincronizarTodas()
 fun compartilharLista(listaComItens: ListaComItens)
 fun sincronizarLista(listaComItens: ListaComItens)
 fun deletarLista(listaComItens: ListaComItens) // DELETE no backend se isShared
+fun editarLista(lista: ListaFeira, novoNome: String, novoValor: Int) // atualiza updatedAt → propagado no próximo sync
 ```
 
 ### SyncEvento
@@ -264,12 +265,9 @@ fun ListaCard(
     onDelete: () -> Unit,
     onCompartilhar: () -> Unit = {},
     onSincronizar: () -> Unit = {},
+    onEditar: () -> Unit = {},
     modifier: Modifier = Modifier
 )
 ```
 
----
-
-## Pendências / Limitações Conhecidas
-
-- **`updatedAt` da lista**: não é atualizado ao editar nome/valor estimado da lista (apenas operações de item). O `atualizarLista()` no repository não chama `atualizarUpdatedAt()`.
+- **Long press** na área principal → abre `AddListaSheet` em modo edição (haptic feedback)

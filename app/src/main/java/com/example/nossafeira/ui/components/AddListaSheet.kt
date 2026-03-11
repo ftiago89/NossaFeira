@@ -51,10 +51,13 @@ import com.example.nossafeira.ui.theme.TextTertiary
 @Composable
 fun AddListaSheet(
     onDismiss: () -> Unit,
-    onConfirm: (nome: String, valorEstimado: Int) -> Unit
+    onConfirm: (nome: String, valorEstimado: Int) -> Unit,
+    nomeInicial: String = "",
+    valorInicial: String = "",
+    modoEdicao: Boolean = false
 ) {
-    var nome by remember { mutableStateOf("") }
-    var valorTexto by remember { mutableStateOf("") }
+    var nome by remember { mutableStateOf(nomeInicial) }
+    var valorTexto by remember { mutableStateOf(valorInicial) }
     var nomeFocado by remember { mutableStateOf(false) }
     var valorFocado by remember { mutableStateOf(false) }
 
@@ -72,6 +75,7 @@ fun AddListaSheet(
             valorTexto = valorTexto,
             nomeFocado = nomeFocado,
             valorFocado = valorFocado,
+            modoEdicao = modoEdicao,
             onNomeChange = { nome = it },
             onValorChange = { valorTexto = it },
             onNomeFocusChange = { nomeFocado = it },
@@ -90,6 +94,7 @@ private fun AddListaSheetContent(
     valorTexto: String,
     nomeFocado: Boolean,
     valorFocado: Boolean,
+    modoEdicao: Boolean = false,
     onNomeChange: (String) -> Unit,
     onValorChange: (String) -> Unit,
     onNomeFocusChange: (Boolean) -> Unit,
@@ -104,7 +109,7 @@ private fun AddListaSheetContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Nova lista",
+            text = if (modoEdicao) "Editar lista" else "Nova lista",
             style = MaterialTheme.typography.titleMedium,
             color = TextPrimary
         )
@@ -155,7 +160,10 @@ private fun AddListaSheetContent(
                 disabledContentColor = TextTertiary
             )
         ) {
-            Text("Criar lista", style = MaterialTheme.typography.labelLarge)
+            Text(
+                text = if (modoEdicao) "Salvar alterações" else "Criar lista",
+                style = MaterialTheme.typography.labelLarge
+            )
         }
     }
 }

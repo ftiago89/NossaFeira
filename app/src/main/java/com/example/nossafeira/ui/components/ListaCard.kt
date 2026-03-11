@@ -3,7 +3,8 @@ package com.example.nossafeira.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +31,9 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,7 +58,7 @@ import com.example.nossafeira.ui.theme.TextPrimary
 import com.example.nossafeira.ui.theme.TextSecondary
 import com.example.nossafeira.ui.theme.TextTertiary
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ListaCard(
     listaComItens: ListaComItens,
@@ -63,6 +66,7 @@ fun ListaCard(
     onDelete: () -> Unit,
     onCompartilhar: () -> Unit = {},
     onSincronizar: () -> Unit = {},
+    onEditar: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val total = listaComItens.itens.size
@@ -76,6 +80,7 @@ fun ListaCard(
         else -> Orange
     }
     val corBarra by animateColorAsState(targetValue = corAlvo, label = "corBarra")
+    val haptic = LocalHapticFeedback.current
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -113,11 +118,17 @@ fun ListaCard(
                 .border(1.dp, Border, RoundedCornerShape(16.dp)),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Área principal — clicável para navegar
+            // Área principal — clicável para navegar, long press para editar
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .clickable(onClick = onClick)
+                    .combinedClickable(
+                        onClick = onClick,
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onEditar()
+                        }
+                    )
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
