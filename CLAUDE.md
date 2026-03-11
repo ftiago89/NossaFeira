@@ -7,7 +7,8 @@
 - Reatividade: StateFlow + Coroutines
 - Navegação: Navigation Compose
 - Rede: Retrofit + OkHttp + Gson
-- DI: sem framework — dependências instanciadas manualmente nos ViewModels
+- DI: sem framework — dependências instanciadas manualmente nas factories dos ViewModels
+- Testes: JUnit4 + Mockk + kotlinx-coroutines-test
 - Min SDK: 24 | Target SDK: 36
 
 ## Estrutura de Pastas
@@ -42,6 +43,15 @@ app/src/main/java/com/example/nossafeira/
 │   └── SyncEvento.kt
 ├── navigation/      → NossaFeiraNavGraph.kt
 └── MainActivity.kt
+
+app/src/test/java/com/example/nossafeira/
+├── ui/utils/
+│   └── PrecoUtilsTest.kt
+├── viewmodel/
+│   ├── ListasViewModelTest.kt
+│   └── ItensViewModelTest.kt
+└── data/repository/
+    └── NossaFeiraRepositoryTest.kt
 ```
 
 ## Navegação
@@ -321,3 +331,75 @@ fun ItemCard(
 - Strings de UI em `strings.xml` (pt-BR)
 - Nunca usar `LiveData` — apenas `StateFlow`
 - Coroutines sempre em `viewModelScope`
+
+---
+
+## Testes
+
+### Injeção de dependência nos ViewModels
+`ListasViewModel` e `ItensViewModel` recebem `NossaFeiraRepository` via construtor. A criação do banco e do repository está nas factories (`companion object`), não no corpo da classe. Isso é necessário para testabilidade — nunca reverter esse padrão.
+
+```kotlin
+// Correto
+class ListasViewModel(
+    application: Application,
+    private val repository: NossaFeiraRepository  // injetado
+) : AndroidViewModel(application)
+
+// Factory cria o repository:
+override fun <T : ViewModel> create(modelClass: Class<T>): T {
+    val db = NossaFeiraDatabase.getInstance(application)
+    val repo = NossaFeiraRepository(db.listaFeiraDao(), db.itemFeiraDao())
+    return ListasViewModel(application, repo) as T
+}
+```
+
+### Padrão obrigatório para testes com coroutines
+
+Sempre criar um `UnconfinedTestDispatcher` e passá-lo tanto para `Dispatchers.setMain` quanto para `runTest`. Sem isso, `viewModelScope` e `runTest` usam schedulers diferentes e causam deadlock com SharedFlow.
+
+```kotlin
+private val dispatcher = UnconfinedTestDispatcher()
+
+@Before fun setup() { Dispatchers.setMain(dispatcher) }
+@After  fun teardown() { Dispatchers.resetMain() }
+
+@Test fun foo() = runTest(dispatcher) { ... }
+```
+
+### Testando SharedFlow (replay=0)
+
+Usar `async { flow.first() }` **antes** da ação que emite. O `launch { collect }` após a ação tem race condition pois o evento pode ser emitido antes do subscriber estar ativo.
+
+```kotlin
+// Correto
+val evento = async { viewModel.syncEvento.first() }
+viewModel.acaoQueEmite()
+assertEquals(SyncEvento.X, evento.await())
+
+// Errado — race condition
+val job = launch { viewModel.syncEvento.collect { ... } }
+viewModel.acaoQueEmite()  // evento pode ser perdido
+```
+
+### Dependências de teste (libs.versions.toml)
+```toml
+mockk = "1.13.10"
+coroutinesTest = "1.8.1"
+```
+```kotlin
+testImplementation(libs.mockk)
+testImplementation(libs.kotlinx.coroutines.test)
+```
+
+### Cobertura atual (unit tests — rodam na JVM)
+| Arquivo | Casos |
+|---|---|
+| `PrecoUtilsTest` | 18 — `extrairQuantidadeNumerica` e `calcularTotalGasto` |
+| `ListasViewModelTest` | 14 — busca, filtragem, criarLista, sync eventos, isSyncing |
+| `ItensViewModelTest` | 17 — filtro, itensFiltrados, adicionarItem, editarItem, toggle, delete |
+| `NossaFeiraRepositoryTest` | 18 — operações de item, sincronizarLista (7 cenários), pullStartup (5 cenários) |
+
+### O que ainda não tem teste
+- DAOs → precisam de Room real → **instrumented test** (`src/androidTest/`)
+- Telas Compose → **UI test** com `ComposeTestRule`

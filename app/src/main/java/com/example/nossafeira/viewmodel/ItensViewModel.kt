@@ -18,13 +18,9 @@ import kotlinx.coroutines.launch
 
 class ItensViewModel(
     application: Application,
-    val listaId: Int
+    val listaId: Int,
+    private val repository: NossaFeiraRepository
 ) : AndroidViewModel(application) {
-
-    private val repository: NossaFeiraRepository = run {
-        val db = NossaFeiraDatabase.getInstance(application)
-        NossaFeiraRepository(db.listaFeiraDao(), db.itemFeiraDao())
-    }
 
     val listaComItens: StateFlow<ListaComItens?> =
         repository.observarListaPorId(listaId)
@@ -87,8 +83,11 @@ class ItensViewModel(
         fun factory(application: Application, listaId: Int): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
-                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-                    ItensViewModel(application, listaId) as T
+                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                    val db = NossaFeiraDatabase.getInstance(application)
+                    val repo = NossaFeiraRepository(db.listaFeiraDao(), db.itemFeiraDao())
+                    return ItensViewModel(application, listaId, repo) as T
+                }
             }
     }
 }

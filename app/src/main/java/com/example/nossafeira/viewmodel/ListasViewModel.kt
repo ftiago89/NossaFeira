@@ -21,12 +21,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class ListasViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repository: NossaFeiraRepository = run {
-        val db = NossaFeiraDatabase.getInstance(application)
-        NossaFeiraRepository(db.listaFeiraDao(), db.itemFeiraDao())
-    }
+class ListasViewModel(
+    application: Application,
+    private val repository: NossaFeiraRepository
+) : AndroidViewModel(application) {
 
     private val _busca = MutableStateFlow("")
     val busca: StateFlow<String> = _busca
@@ -122,6 +120,13 @@ class ListasViewModel(application: Application) : AndroidViewModel(application) 
 
     companion object {
         fun factory(application: Application): ViewModelProvider.Factory =
-            object : ViewModelProvider.AndroidViewModelFactory(application) {}
+            object : ViewModelProvider.AndroidViewModelFactory(application) {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                    val db = NossaFeiraDatabase.getInstance(application)
+                    val repo = NossaFeiraRepository(db.listaFeiraDao(), db.itemFeiraDao())
+                    return ListasViewModel(application, repo) as T
+                }
+            }
     }
 }
