@@ -184,8 +184,10 @@ suspend fun sincronizarLista(listaComItens: ListaComItens): SyncResult
 
 suspend fun pullStartup()
 // GET /listas → para cada lista remota:
-//   - não existe localmente → insere no Room
-//   - existe e backend.updatedAt > syncedAt → sobrescreve local
+//   - não existe localmente → insere no Room, syncedAt = remote.updatedAt
+//   - existe e backend.updatedAt > syncedAt → sobrescreve local, syncedAt = remote.updatedAt
+// Após processar remotas: listas locais com isShared=true cujo remoteId não veio no response → marcarComoLocal()
+// Nota: syncedAt usa sempre o timestamp do servidor (não o relógio do dispositivo) para evitar clock skew
 
 suspend fun deletarListaCompartilhada(lista: ListaFeira)
 // DELETE /listas/{remoteId} → deleta do Room
@@ -271,4 +273,3 @@ fun ListaCard(
 ## Pendências / Limitações Conhecidas
 
 - **`updatedAt` da lista**: não é atualizado ao editar nome/valor estimado da lista (apenas operações de item). O `atualizarLista()` no repository não chama `atualizarUpdatedAt()`.
-- **pullStartup não reverte listas deletadas remotamente**: se outro membro deletar uma lista e o dispositivo local fizer apenas o pull de startup (sem clicar em sync no card), a lista local com `isShared=true` permanece sem ser revertida para local. A reversão só ocorre quando o usuário clica em sync no card individual (detecta 404) ou na próxima vez que o `GET /listas` não retornar aquela lista — mas esta segunda checagem ainda não está implementada.

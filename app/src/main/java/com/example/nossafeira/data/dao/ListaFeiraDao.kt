@@ -52,4 +52,8 @@ interface ListaFeiraDao {
     @Transaction
     @Query("SELECT * FROM listas_feira WHERE remoteId = :remoteId")
     suspend fun buscarPorRemoteId(remoteId: String): ListaComItens?
+
+    @Transaction
+    @Query("SELECT * FROM listas_feira WHERE isShared = 1")
+    suspend fun buscarTodasCompartilhadas(): List<ListaComItens>
 }

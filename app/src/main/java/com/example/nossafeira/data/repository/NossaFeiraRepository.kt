@@ -119,7 +119,7 @@ class NossaFeiraRepository(
                     SyncResult.Sucesso
                 } else {
                     // Remote é mais recente → atualiza local
-                    aplicarListaRemota(lista.id, remote, now)
+                    aplicarListaRemota(lista.id, remote)
                     SyncResult.Conflito
                 }
             }
@@ -137,7 +137,7 @@ class NossaFeiraRepository(
             }
             remoteTemMudancas -> {
                 // Apenas o remote mudou → atualiza local
-                aplicarListaRemota(lista.id, remote, now)
+                aplicarListaRemota(lista.id, remote)
                 SyncResult.Conflito
             }
             else -> SyncResult.Sucesso // Nada mudou
@@ -146,14 +146,9 @@ class NossaFeiraRepository(
 
     suspend fun pullStartup() {
         val response = remoteDataSource.getListas()
-        val now = System.currentTimeMillis()
 
         val remoteListas = response.content
         val remoteIds = remoteListas.map { it.id }.toSet()
-
-        // Listas compartilhadas localmente que sumiram do backend → viram locais
-        val listaCompartilhadasLocais = listaDao.observarTodasComItens()
-        // (leitura única via firstOrNull não é possível aqui sem Flow — usamos busca direta)
 
         remoteListas.forEach { remote ->
             val local = listaDao.buscarPorRemoteId(remote.id)
@@ -162,11 +157,19 @@ class NossaFeiraRepository(
                 val novaLista = remote.toLista()
                 val novoId = listaDao.inserir(novaLista).toInt()
                 itemDao.inserirTodos(remote.itens.map { it.toItem(novoId) })
+                listaDao.atualizarSyncedAt(novoId, remote.updatedAt.toTimestampMs())
             } else if (remote.updatedAt.toTimestampMs() > local.lista.syncedAt) {
                 // Outro membro atualizou → sobrescreve local
-                aplicarListaRemota(local.lista.id, remote, now)
+                aplicarListaRemota(local.lista.id, remote)
             }
             // Se updatedAt <= syncedAt: sem mudanças externas, não faz nada
+        }
+
+        // Listas compartilhadas localmente que sumiram do backend → viram locais
+        listaDao.buscarTodasCompartilhadas().forEach { local ->
+            if (local.lista.remoteId !in remoteIds) {
+                listaDao.marcarComoLocal(local.lista.id)
+            }
         }
     }
 
@@ -177,11 +180,11 @@ class NossaFeiraRepository(
 
     // ── Helpers privados ──────────────────────────────────────────────────────
 
-    private suspend fun aplicarListaRemota(localId: Int, remote: ListaDto, now: Long) {
+    private suspend fun aplicarListaRemota(localId: Int, remote: ListaDto) {
         listaDao.atualizar(remote.toLista().copy(id = localId))
         itemDao.deletarPorLista(localId)
         itemDao.inserirTodos(remote.itens.map { it.toItem(localId) })
-        listaDao.atualizarSyncedAt(localId, now)
+        listaDao.atualizarSyncedAt(localId, remote.updatedAt.toTimestampMs())
     }
 
     private fun ItemFeira.toDto() = ItemDto(

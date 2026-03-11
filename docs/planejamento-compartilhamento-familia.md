@@ -189,7 +189,7 @@ src/
 
 ### Estratégia de Conflito
 
-Comparação via `syncedAt` (timestamp do último sync bem-sucedido no dispositivo local):
+Comparação via `syncedAt` (timestamp do servidor no momento do último sync bem-sucedido — usa `remote.updatedAt`, não o relógio local do dispositivo, para evitar clock skew):
 
 | `local.updatedAt > syncedAt` | `remote.updatedAt > syncedAt` | Resultado |
 |---|---|---|
