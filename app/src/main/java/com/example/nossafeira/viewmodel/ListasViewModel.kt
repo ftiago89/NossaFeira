@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -43,6 +44,9 @@ class ListasViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _syncEvento = MutableSharedFlow<SyncEvento>()
     val syncEvento: SharedFlow<SyncEvento> = _syncEvento.asSharedFlow()
+
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
     init {
         pullStartup()
@@ -81,9 +85,10 @@ class ListasViewModel(application: Application) : AndroidViewModel(application) 
             runCatching { repository.sincronizarLista(listaComItens) }
                 .onSuccess { result ->
                     val evento = when (result) {
-                        SyncResult.Sucesso   -> SyncEvento.Sincronizada
-                        SyncResult.Conflito  -> SyncEvento.Conflito
-                        SyncResult.Erro      -> SyncEvento.ErroRede
+                        SyncResult.Sucesso       -> SyncEvento.Sincronizada
+                        SyncResult.Conflito      -> SyncEvento.Conflito
+                        SyncResult.Erro          -> SyncEvento.ErroRede
+                        SyncResult.ListaDeletada -> SyncEvento.ListaDeletada
                     }
                     _syncEvento.emit(evento)
                 }
@@ -93,6 +98,17 @@ class ListasViewModel(application: Application) : AndroidViewModel(application) 
 
     fun atualizarBusca(query: String) {
         _busca.value = query
+    }
+
+    fun sincronizarTodas() {
+        if (_isSyncing.value) return
+        viewModelScope.launch {
+            _isSyncing.value = true
+            runCatching { repository.pullStartup() }
+                .onSuccess { _syncEvento.emit(SyncEvento.PullConcluido) }
+                .onFailure { _syncEvento.emit(SyncEvento.ErroRede) }
+            _isSyncing.value = false
+        }
     }
 
     private fun pullStartup() {

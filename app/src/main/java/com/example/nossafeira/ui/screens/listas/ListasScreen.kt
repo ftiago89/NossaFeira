@@ -20,10 +20,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -36,11 +43,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -67,6 +76,7 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
 
     val listas by viewModel.listas.collectAsStateWithLifecycle()
     val busca by viewModel.busca.collectAsStateWithLifecycle()
+    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     var mostrarAddSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -77,6 +87,8 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
                 SyncEvento.Sincronizada  -> "Lista sincronizada com sucesso."
                 SyncEvento.Conflito      -> "Lista atualizada. Suas alterações locais foram substituídas."
                 SyncEvento.ErroRede      -> "Falha na sincronização. Verifique sua conexão."
+                SyncEvento.ListaDeletada -> "A lista foi removida pelo outro membro e voltou a ser local."
+                SyncEvento.PullConcluido -> "Listas sincronizadas com sucesso."
             }
             Toast.makeText(context, mensagem, Toast.LENGTH_SHORT).show()
         }
@@ -84,7 +96,12 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
 
     Scaffold(
         containerColor = Background,
-        topBar = { ListasTopBar() },
+        topBar = {
+            ListasTopBar(
+                isSyncing = isSyncing,
+                onSync = { viewModel.sincronizarTodas() }
+            )
+        },
         floatingActionButton = {
             NossaFeiraFab(onClick = { mostrarAddSheet = true })
         }
@@ -151,7 +168,21 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
 // ── TopBar ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ListasTopBar() {
+private fun ListasTopBar(
+    isSyncing: Boolean,
+    onSync: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "sync_rotation")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "sync_rotation"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,13 +203,17 @@ private fun ListasTopBar() {
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Surface),
+                .background(Surface)
+                .clickable(enabled = !isSyncing, onClick = onSync),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "Menu",
-                tint = TextSecondary
+                imageVector = Icons.Default.Refresh,
+                contentDescription = "Sincronizar listas",
+                tint = if (isSyncing) Primary else TextSecondary,
+                modifier = Modifier.graphicsLayer {
+                    rotationZ = if (isSyncing) rotation else 0f
+                }
             )
         }
     }
@@ -290,7 +325,15 @@ private fun ListasEstadoVazio(
 @Composable
 private fun ListasTopBarPreview() {
     NossaFeiraTheme {
-        ListasTopBar()
+        ListasTopBar(isSyncing = false, onSync = {})
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0F1117, name = "TopBar - sincronizando")
+@Composable
+private fun ListasTopBarSyncingPreview() {
+    NossaFeiraTheme {
+        ListasTopBar(isSyncing = true, onSync = {})
     }
 }
 

@@ -164,7 +164,10 @@ val TextTertiary = Color(0xFF5A6080)
 ### 1. TopBar
 - Título: "NossaFeira 🛒" (22sp bold, cor TextPrimary)
 - Subtítulo: "Feira da semana" (13sp, cor TextSecondary)
-- Botão de menu (⋮) no canto direito: 40x40dp, background Surface, radius 12dp
+- Botão de sync (↺) no canto direito: 40x40dp, background Surface, radius 12dp
+  - Ícone `Icons.Default.Refresh`, cor TextSecondary em repouso / Primary durante sync
+  - Enquanto sincronizando: ícone gira continuamente (animação infinita 800ms/volta), clique desabilitado
+  - Chama `viewModel.sincronizarTodas()` — pull de todas as listas compartilhadas da família
 
 ### 2. SearchBar
 - Background: Surface

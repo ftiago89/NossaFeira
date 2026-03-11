@@ -13,6 +13,7 @@ import com.example.nossafeira.data.remote.dto.PostListaRequest
 import com.example.nossafeira.data.remote.dto.PutListaRequest
 import com.example.nossafeira.ui.utils.calcularTotalGasto
 import kotlinx.coroutines.flow.Flow
+import retrofit2.HttpException
 
 class NossaFeiraRepository(
     private val listaDao: ListaFeiraDao,
@@ -88,23 +89,58 @@ class NossaFeiraRepository(
         val remoteId = lista.remoteId ?: return SyncResult.Erro
         val now = System.currentTimeMillis()
 
-        val remote = remoteDataSource.getLista(remoteId)
+        val remote = try {
+            remoteDataSource.getLista(remoteId)
+        } catch (e: HttpException) {
+            if (e.code() == 404) {
+                listaDao.marcarComoLocal(lista.id)
+                return SyncResult.ListaDeletada
+            }
+            throw e
+        }
 
-        return if (remote.updatedAt.toTimestampMs() > lista.syncedAt) {
-            // Conflito: backend tem versão mais nova → atualiza local
-            aplicarListaRemota(lista.id, remote, now)
-            SyncResult.Conflito
-        } else {
-            // Local é mais recente → envia para o backend
-            val body = PutListaRequest(
-                nome = lista.nome,
-                valorEstimado = lista.valorEstimado,
-                valorCalculado = calcularTotalGasto(listaComItens.itens),
-                itens = listaComItens.itens.map { it.toDto() }
-            )
-            remoteDataSource.atualizarLista(remoteId, body)
-            listaDao.atualizarSyncedAt(lista.id, now)
-            SyncResult.Sucesso
+        val remoteUpdatedAt = remote.updatedAt.toTimestampMs()
+        val localTemMudancas = lista.updatedAt > lista.syncedAt
+        val remoteTemMudancas = remoteUpdatedAt > lista.syncedAt
+
+        return when {
+            localTemMudancas && remoteTemMudancas -> {
+                // Ambos mudaram desde o último sync → desempata pelo mais recente
+                if (lista.updatedAt >= remoteUpdatedAt) {
+                    // Local é mais recente → envia para o backend
+                    val body = PutListaRequest(
+                        nome = lista.nome,
+                        valorEstimado = lista.valorEstimado,
+                        valorCalculado = calcularTotalGasto(listaComItens.itens),
+                        itens = listaComItens.itens.map { it.toDto() }
+                    )
+                    remoteDataSource.atualizarLista(remoteId, body)
+                    listaDao.atualizarSyncedAt(lista.id, now)
+                    SyncResult.Sucesso
+                } else {
+                    // Remote é mais recente → atualiza local
+                    aplicarListaRemota(lista.id, remote, now)
+                    SyncResult.Conflito
+                }
+            }
+            localTemMudancas -> {
+                // Apenas local mudou → envia para o backend
+                val body = PutListaRequest(
+                    nome = lista.nome,
+                    valorEstimado = lista.valorEstimado,
+                    valorCalculado = calcularTotalGasto(listaComItens.itens),
+                    itens = listaComItens.itens.map { it.toDto() }
+                )
+                remoteDataSource.atualizarLista(remoteId, body)
+                listaDao.atualizarSyncedAt(lista.id, now)
+                SyncResult.Sucesso
+            }
+            remoteTemMudancas -> {
+                // Apenas o remote mudou → atualiza local
+                aplicarListaRemota(lista.id, remote, now)
+                SyncResult.Conflito
+            }
+            else -> SyncResult.Sucesso // Nada mudou
         }
     }
 
