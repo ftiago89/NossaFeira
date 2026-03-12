@@ -8,7 +8,7 @@
 - Navegação: Navigation Compose
 - Rede: Retrofit + OkHttp + Gson
 - DI: sem framework — dependências instanciadas manualmente nas factories dos ViewModels
-- Testes: JUnit4 + Mockk + kotlinx-coroutines-test
+- Testes: JUnit4 + Mockk + kotlinx-coroutines-test + Room Testing (instrumentação)
 - Min SDK: 24 | Target SDK: 36
 
 ## Estrutura de Pastas
@@ -52,6 +52,13 @@ app/src/test/java/com/example/nossafeira/
 │   └── ItensViewModelTest.kt
 └── data/repository/
     └── NossaFeiraRepositoryTest.kt
+
+app/src/androidTest/java/com/example/nossafeira/
+├── data/dao/
+│   ├── ListaFeiraDaoTest.kt
+│   └── ItemFeiraDaoTest.kt
+└── data/db/
+    └── NossaFeiraDatabaseMigrationTest.kt
 ```
 
 ## Navegação
@@ -212,11 +219,12 @@ val TextTertiary = Color(0xFF5A6080)
 - Radius: 16dp
 - Padding: 16dp
 - Conteúdo:
-  - Área principal (clicável): nome, progresso, valores, barra
+  - Área principal (clicável): nome, data de criação, progresso, valores, barra
   - Coluna de botões no canto direito (empilhados):
     - `!isShared` → ícone `Share` (Primary, 20dp) — chama `onCompartilhar`
     - `isShared` → ícone `Refresh` (Primary, 20dp) — chama `onSincronizar`
     - Ícone `Delete` (Pink, 20dp) — chama `onDelete`
+  - Data de criação: `criadaEm` formatado como "dd MMM. yyyy" (12sp, TextTertiary) — exibido abaixo do nome
   - Linha de progresso: "X de Y itens comprados" (13sp, TextSecondary)
   - Valor estimado: se > 0, exibir "Estimado: R$ X,XX" (13sp, TextTertiary)
   - Valor gasto real: se > 0, exibir "Gasto: R$ X,XX" (13sp, Green) — calculado via `calcularTotalGasto(itens)`
@@ -408,6 +416,7 @@ coroutinesTest = "1.8.1"
 ```kotlin
 testImplementation(libs.mockk)
 testImplementation(libs.kotlinx.coroutines.test)
+androidTestImplementation(libs.androidx.room.testing)
 ```
 
 ### Cobertura atual (unit tests — rodam na JVM)
@@ -418,6 +427,49 @@ testImplementation(libs.kotlinx.coroutines.test)
 | `ItensViewModelTest` | 17 — filtro, itensFiltrados, adicionarItem, editarItem, toggle, delete |
 | `NossaFeiraRepositoryTest` | 18 — operações de item, sincronizarLista (7 cenários), pullStartup (5 cenários) |
 
+### Cobertura atual (instrumented tests — rodam no emulador/dispositivo)
+
+Rodar com: `./gradlew connectedDebugAndroidTest`
+
+| Arquivo | Casos |
+|---|---|
+| `ListaFeiraDaoTest` | 10 — insert, ordenação, `@Relation`, cascade, `updatedAt`, compartilhamento, `syncedAt`, `marcarComoLocal`, `buscarPorRemoteId`, filtro `isShared` |
+| `ItemFeiraDaoTest` | 5 — insert, filtro por categoria, toggle `comprado`, `deletarPorLista`, `inserirTodos` |
+| `NossaFeiraDatabaseMigrationTest` | 2 — migration 3→4 (defaults de compartilhamento) e 4→5 (coluna `remoteItemId` preenchida) |
+
+### Padrão para testes instrumentados de DAO
+
+Usar `Room.inMemoryDatabaseBuilder` — banco descartado após cada teste, sem efeito colateral.
+
+```kotlin
+@Before
+fun setup() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    db = Room.inMemoryDatabaseBuilder(context, NossaFeiraDatabase::class.java)
+        .allowMainThreadQueries()
+        .build()
+}
+
+@After
+fun teardown() { db.close() }
+```
+
+Usar `runBlocking` + `Flow.first()` para coletar emissões nos testes de DAO — sem necessidade de `UnconfinedTestDispatcher` (não há `SharedFlow`).
+
+### Padrão para testes de migration sem schema exportado
+
+Usar `SQLiteDatabase` raw para criar o schema da versão antiga, aplicar o SQL da migration manualmente e verificar o resultado. Não requer `exportSchema = true` nem arquivos de schema JSON.
+
+```kotlin
+val rawDb = SQLiteDatabase.openOrCreateDatabase(dbFile, null)
+rawDb.execSQL("CREATE TABLE ...")  // schema da versão anterior
+rawDb.close()
+
+val db = SQLiteDatabase.openDatabase(dbFile.path, null, SQLiteDatabase.OPEN_READWRITE)
+db.execSQL("ALTER TABLE ...")      // SQL exato da Migration
+// assertions...
+db.close()
+```
+
 ### O que ainda não tem teste
-- DAOs → precisam de Room real → **instrumented test** (`src/androidTest/`)
-- Telas Compose → **UI test** com `ComposeTestRule`
+- Telas Compose → UI test com `ComposeTestRule` — descartado para esse projeto (custo/benefício não fecha para app familiar sem CI/CD)
