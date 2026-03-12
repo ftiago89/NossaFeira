@@ -42,6 +42,9 @@ import com.example.nossafeira.data.model.Categoria
 import com.example.nossafeira.data.model.ItemFeira
 import com.example.nossafeira.data.model.ListaComItens
 import com.example.nossafeira.data.model.ListaFeira
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.example.nossafeira.ui.utils.calcularTotalGasto
 import com.example.nossafeira.ui.theme.Border
 import com.example.nossafeira.ui.theme.Green
@@ -73,6 +76,9 @@ fun ListaCard(
     val comprados = listaComItens.itens.count { it.comprado }
     val progresso = if (total > 0) comprados.toFloat() / total else 0f
     val totalGasto = calcularTotalGasto(listaComItens.itens)
+
+    val dataCriacao = SimpleDateFormat("dd MMM. yyyy", Locale("pt", "BR"))
+        .format(Date(listaComItens.lista.criadaEm))
 
     val corAlvo = when {
         progresso >= 0.67f -> Green
@@ -138,6 +144,12 @@ fun ListaCard(
                     color = TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = dataCriacao,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextTertiary
                 )
 
                 Text(
