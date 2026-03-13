@@ -7,6 +7,7 @@
 - Reatividade: StateFlow + Coroutines
 - Navegação: Navigation Compose
 - Rede: Retrofit + OkHttp + Gson
+- OCR: ML Kit Text Recognition `16.0.1` (on-device, sem rede)
 - DI: sem framework — dependências instanciadas manualmente nas factories dos ViewModels
 - Testes: JUnit4 + Mockk + kotlinx-coroutines-test + Room Testing (instrumentação)
 - Min SDK: 24 | Target SDK: 36
@@ -36,6 +37,7 @@ app/src/main/java/com/example/nossafeira/
 │   │   ├── AddListaSheet.kt
 │   │   └── FilterChips.kt
 │   ├── utils/       → PrecoUtils.kt (extrairQuantidadeNumerica, calcularTotalGasto)
+│   │                  PrecoOcrExtractor.kt (extrairPrecosDaEtiqueta — OCR puro, sem Android)
 │   └── theme/       → Color.kt, Type.kt, Theme.kt
 ├── viewmodel/
 │   ├── ListasViewModel.kt
@@ -46,7 +48,8 @@ app/src/main/java/com/example/nossafeira/
 
 app/src/test/java/com/example/nossafeira/
 ├── ui/utils/
-│   └── PrecoUtilsTest.kt
+│   ├── PrecoUtilsTest.kt
+│   └── PrecoOcrExtractorTest.kt
 ├── viewmodel/
 │   ├── ListasViewModelTest.kt
 │   └── ItensViewModelTest.kt
@@ -308,6 +311,25 @@ fun ItemCard(
 - Input: background Surface2, border 1.5dp (Border normal / Primary em foco), radius 10dp
 - Campos: "Nome do item", "Quantidade" e "PREÇO R$ (OPCIONAL)" (teclado decimal, convertido para `Int` em centavos)
 
+#### Campo de preço — câmera OCR:
+O campo de preço é uma `Row` com o input e um botão de câmera 48×48dp ao lado:
+- Ícone: `ic_camera_alt` (drawable vetorial — **não usar** Material Icons Extended para não inflar o APK)
+- Durante OCR: ícone substituído por `CircularProgressIndicator` 20dp, cor Primary
+- **1 candidato** retornado: `LaunchedEffect` preenche `precoTexto` automaticamente
+- **2+ candidatos**: `LazyRow` com chips clicáveis (Surface3, radius 20dp) abaixo do campo; toque preenche o campo
+
+Assinatura com os novos parâmetros hoisted do `ItensScreen`:
+```kotlin
+fun AddItemSheet(
+    onDismiss: () -> Unit,
+    onConfirm: (nome: String, quantidade: String, categoria: Categoria, preco: Int) -> Unit,
+    itemParaEditar: ItemFeira? = null,
+    onCameraRequest: () -> Unit = {},
+    precoSugeridos: List<Int> = emptyList(),
+    isProcessandoOcr: Boolean = false
+)
+```
+
 #### Grade de categorias (2×N, chunked(2)):
 - Cada opção: border 1.5dp Border, radius 10dp, emoji + texto 13sp semibold
 - Quando selecionada, cada categoria tem cor própria (igual às cores das barras laterais)
@@ -344,6 +366,7 @@ fun ItemCard(
 - **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
 - **Editar item**: long press no ItemCard → abre `AddItemSheet` em modo edição com campos pré-preenchidos; ao confirmar chama `ItensViewModel.editarItem`
 - **Editar lista**: long press no ListaCard → abre `AddListaSheet` em modo edição com nome e valor pré-preenchidos; ao confirmar chama `ListasViewModel.editarLista` — atualiza `updatedAt`, propagando a mudança no sync
+- **Câmera OCR (preço)**: ícone câmera ao lado do campo de preço no `AddItemSheet` → solicita permissão `CAMERA` → abre câmera do sistema via `TakePicture` → ML Kit lê o texto → `extrairPrecosDaEtiqueta` filtra os preços → preenche campo ou exibe chips de escolha. Launchers ficam em `ItensScreen` (o `ModalBottomSheet` pode ser destruído enquanto a câmera está aberta). Estado de OCR (`precoSugeridos`, `isProcessandoOcr`, `fotoUri`) em `rememberSaveable`.
 - **Animações**: itens entram com `slideIn` + `fadeIn` ao carregar a lista
 - **Feedback tátil**: `LocalHapticFeedback` ao marcar item como comprado e ao acionar long press para edição
 
@@ -357,6 +380,8 @@ fun ItemCard(
 - Strings de UI em `strings.xml` (pt-BR)
 - Nunca usar `LiveData` — apenas `StateFlow`
 - Coroutines sempre em `viewModelScope`
+- **Nunca importar ML Kit nem `android.graphics.Bitmap` no ViewModel** — OCR fica em `ui/utils/PrecoOcrExtractor.kt` (função pura) e a orquestração fica na camada Composable (`ItensScreen`)
+- **Nunca usar Material Icons Extended** — aumenta o APK em ~3MB. Criar drawables vetoriais em `res/drawable/` quando necessário (ex: `ic_camera_alt.xml`)
 
 ---
 
@@ -423,6 +448,7 @@ androidTestImplementation(libs.androidx.room.testing)
 | Arquivo | Casos |
 |---|---|
 | `PrecoUtilsTest` | 18 — `extrairQuantidadeNumerica` e `calcularTotalGasto` |
+| `PrecoOcrExtractorTest` | 19 — vírgula, ponto decimal, milhar, espaços, múltiplos, deduplicação |
 | `ListasViewModelTest` | 14 — busca, filtragem, criarLista, sync eventos, isSyncing |
 | `ItensViewModelTest` | 17 — filtro, itensFiltrados, adicionarItem, editarItem, toggle, delete |
 | `NossaFeiraRepositoryTest` | 18 — operações de item, sincronizarLista (7 cenários), pullStartup (5 cenários) |

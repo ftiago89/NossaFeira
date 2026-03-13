@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp.logging)
+    implementation(libs.mlkit.text.recognition)
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
