@@ -82,6 +82,7 @@ class NossaFeiraRepository(
         )
         val response = remoteDataSource.compartilharLista(body)
         listaDao.atualizarCompartilhamento(lista.id, response.id, now)
+        itemDao.atualizarSnapshot(lista.id)
     }
 
     suspend fun sincronizarLista(listaComItens: ListaComItens): SyncResult {
@@ -104,26 +105,7 @@ class NossaFeiraRepository(
         val remoteTemMudancas = remoteUpdatedAt > lista.syncedAt
 
         return when {
-            localTemMudancas && remoteTemMudancas -> {
-                // Ambos mudaram desde o último sync → desempata pelo mais recente
-                if (lista.updatedAt >= remoteUpdatedAt) {
-                    // Local é mais recente → envia para o backend
-                    val body = PutListaRequest(
-                        nome = lista.nome,
-                        valorEstimado = lista.valorEstimado,
-                        valorCalculado = calcularTotalGasto(listaComItens.itens),
-                        itens = listaComItens.itens.map { it.toDto() }
-                    )
-                    remoteDataSource.atualizarLista(remoteId, body)
-                    listaDao.atualizarSyncedAt(lista.id, now)
-                    SyncResult.Sucesso
-                } else {
-                    // Remote é mais recente → atualiza local
-                    aplicarListaRemota(lista.id, remote)
-                    SyncResult.Conflito
-                }
-            }
-            localTemMudancas -> {
+            localTemMudancas && !remoteTemMudancas -> {
                 // Apenas local mudou → envia para o backend
                 val body = PutListaRequest(
                     nome = lista.nome,
@@ -132,13 +114,26 @@ class NossaFeiraRepository(
                     itens = listaComItens.itens.map { it.toDto() }
                 )
                 remoteDataSource.atualizarLista(remoteId, body)
+                itemDao.atualizarSnapshot(lista.id)
                 listaDao.atualizarSyncedAt(lista.id, now)
                 SyncResult.Sucesso
             }
             remoteTemMudancas -> {
-                // Apenas o remote mudou → atualiza local
-                aplicarListaRemota(lista.id, remote)
-                SyncResult.Conflito
+                // Remote mudou (com ou sem mudanças locais) → merge three-way + push
+                val itensMerged = mergeItens(lista.id, remote)
+                listaDao.atualizar(
+                    remote.toLista().copy(id = lista.id, updatedAt = now)
+                )
+                val body = PutListaRequest(
+                    nome = remote.nome,
+                    valorEstimado = remote.valorEstimado,
+                    valorCalculado = calcularTotalGasto(itensMerged),
+                    itens = itensMerged.map { it.toDto() }
+                )
+                remoteDataSource.atualizarLista(remoteId, body)
+                itemDao.atualizarSnapshot(lista.id)
+                listaDao.atualizarSyncedAt(lista.id, now)
+                SyncResult.Mesclada
             }
             else -> SyncResult.Sucesso // Nada mudou
         }
@@ -159,8 +154,10 @@ class NossaFeiraRepository(
                 itemDao.inserirTodos(remote.itens.map { it.toItem(novoId) })
                 listaDao.atualizarSyncedAt(novoId, remote.updatedAt.toTimestampMs())
             } else if (remote.updatedAt.toTimestampMs() > local.lista.syncedAt) {
-                // Outro membro atualizou → sobrescreve local
-                aplicarListaRemota(local.lista.id, remote)
+                // Outro membro atualizou → merge aditivo (preserva itens locais)
+                mergeItens(local.lista.id, remote)
+                listaDao.atualizar(remote.toLista().copy(id = local.lista.id))
+                listaDao.atualizarSyncedAt(local.lista.id, remote.updatedAt.toTimestampMs())
             }
             // Se updatedAt <= syncedAt: sem mudanças externas, não faz nada
         }
@@ -180,11 +177,58 @@ class NossaFeiraRepository(
 
     // ── Helpers privados ──────────────────────────────────────────────────────
 
-    private suspend fun aplicarListaRemota(localId: Int, remote: ListaDto) {
-        listaDao.atualizar(remote.toLista().copy(id = localId))
-        itemDao.deletarPorLista(localId)
-        itemDao.inserirTodos(remote.itens.map { it.toItem(localId) })
-        listaDao.atualizarSyncedAt(localId, remote.updatedAt.toTimestampMs())
+    /**
+     * Merge three-way: compara local vs snapshot vs remote para cada item.
+     * - Só local mudou → manter local
+     * - Só remote mudou (ou ambos) → aceitar remote
+     * - Nenhum mudou → manter local (são iguais)
+     * - Item só no remote → inserir
+     * - Item só no local → preservar
+     * Retorna a lista completa de itens após o merge.
+     */
+    private suspend fun mergeItens(localId: Int, remote: ListaDto): List<ItemFeira> {
+        val itensLocais = itemDao.buscarPorLista(localId)
+        val mapaLocal = itensLocais.associateBy { it.remoteItemId }
+        val remoteItemIds = remote.itens.map { it.id }.toSet()
+
+        val itensProcessados = remote.itens.map { remoteItem ->
+            val local = mapaLocal[remoteItem.id]
+            if (local != null) {
+                val localMudou = local.nome != local.syncNome ||
+                    local.quantidade != local.syncQuantidade ||
+                    local.preco != local.syncPreco ||
+                    local.comprado != local.syncComprado ||
+                    local.categoria.name != local.syncCategoria
+
+                val remoteMudou = remoteItem.nome != local.syncNome ||
+                    remoteItem.quantidade != local.syncQuantidade ||
+                    remoteItem.preco != local.syncPreco ||
+                    remoteItem.comprado != local.syncComprado ||
+                    remoteItem.categoria != local.syncCategoria
+
+                if (localMudou && !remoteMudou) {
+                    // Só local mudou → manter versão local
+                    local
+                } else if (remoteMudou) {
+                    // Remote mudou (com ou sem local) → aceitar remote
+                    val atualizado = remoteItem.toItem(localId).copy(id = local.id)
+                    itemDao.atualizar(atualizado)
+                    atualizado
+                } else {
+                    // Nenhum mudou → manter local (são iguais)
+                    local
+                }
+            } else {
+                // Novo no remote → insere
+                val novoId = itemDao.inserir(remoteItem.toItem(localId)).toInt()
+                remoteItem.toItem(localId).copy(id = novoId)
+            }
+        }
+
+        // Itens só locais (não existem no remote) → preservados, sem alteração
+        val itensSoLocais = itensLocais.filter { it.remoteItemId !in remoteItemIds }
+
+        return itensProcessados + itensSoLocais
     }
 
     private fun ItemFeira.toDto() = ItemDto(
@@ -221,6 +265,11 @@ class NossaFeiraRepository(
         preco = preco,
         comprado = comprado,
         criadoEm = criadoEm,
-        remoteItemId = id
+        remoteItemId = id,
+        syncNome = nome,
+        syncQuantidade = quantidade,
+        syncPreco = preco,
+        syncComprado = comprado,
+        syncCategoria = categoria
     )
 }

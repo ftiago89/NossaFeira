@@ -41,4 +41,15 @@ interface ItemFeiraDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun inserirTodos(itens: List<ItemFeira>)
+
+    @Query("SELECT * FROM itens_feira WHERE listaId = :listaId")
+    suspend fun buscarPorLista(listaId: Int): List<ItemFeira>
+
+    @Query("""
+        UPDATE itens_feira
+        SET syncNome = nome, syncQuantidade = quantidade, syncPreco = preco,
+            syncComprado = comprado, syncCategoria = categoria
+        WHERE listaId = :listaId
+    """)
+    suspend fun atualizarSnapshot(listaId: Int)
 }

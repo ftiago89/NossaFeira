@@ -17,7 +17,7 @@
 ```
 app/src/main/java/com/example/nossafeira/
 ├── data/
-│   ├── db/          → NossaFeiraDatabase.kt (Room v5, com MIGRATION_1_2 até MIGRATION_4_5)
+│   ├── db/          → NossaFeiraDatabase.kt (Room v6, com MIGRATION_1_2 até MIGRATION_5_6)
 │   ├── model/       → ListaFeira.kt, ItemFeira.kt, ListaComItens.kt
 │   ├── dao/         → ListaFeiraDao.kt, ItemFeiraDao.kt
 │   ├── remote/
@@ -114,7 +114,12 @@ data class ItemFeira(
     val preco: Int = 0,             // em centavos (ex: R$ 9,99 → 999); adicionado na v2, convertido na v3
     val comprado: Boolean = false,
     val criadoEm: Long = System.currentTimeMillis(),
-    val remoteItemId: String = UUID.randomUUID().toString() // UUID estável para identificar o item no backend
+    val remoteItemId: String = UUID.randomUUID().toString(), // UUID estável para identificar o item no backend
+    val syncNome: String = "",           // snapshot do último sync — usado no merge three-way
+    val syncQuantidade: String = "",
+    val syncPreco: Int = 0,
+    val syncComprado: Boolean = false,
+    val syncCategoria: String = ""
 )
 
 enum class Categoria { HORTIFRUTI, LATICINIOS, LIMPEZA, OUTROS, PROTEINAS, PADARIA }
@@ -451,7 +456,7 @@ androidTestImplementation(libs.androidx.room.testing)
 | `PrecoOcrExtractorTest` | 19 — vírgula, ponto decimal, milhar, espaços, múltiplos, deduplicação |
 | `ListasViewModelTest` | 14 — busca, filtragem, criarLista, sync eventos, isSyncing |
 | `ItensViewModelTest` | 17 — filtro, itensFiltrados, adicionarItem, editarItem, toggle, delete |
-| `NossaFeiraRepositoryTest` | 18 — operações de item, sincronizarLista (7 cenários), pullStartup (5 cenários) |
+| `NossaFeiraRepositoryTest` | 21 — operações de item, sincronizarLista (10 cenários com merge three-way), pullStartup (5 cenários) |
 
 ### Cobertura atual (instrumented tests — rodam no emulador/dispositivo)
 

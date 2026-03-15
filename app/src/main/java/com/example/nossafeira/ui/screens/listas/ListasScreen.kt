@@ -87,7 +87,7 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
             val mensagem = when (evento) {
                 SyncEvento.Compartilhada -> "Lista compartilhada com sucesso."
                 SyncEvento.Sincronizada  -> "Lista sincronizada com sucesso."
-                SyncEvento.Conflito      -> "Lista atualizada. Suas alterações locais foram substituídas."
+                SyncEvento.Mesclada      -> "Lista sincronizada. Novos itens foram adicionados."
                 SyncEvento.ErroRede      -> "Falha na sincronização. Verifique sua conexão."
                 SyncEvento.ListaDeletada -> "A lista foi removida pelo outro membro e voltou a ser local."
                 SyncEvento.PullConcluido -> "Listas sincronizadas com sucesso."
