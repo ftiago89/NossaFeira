@@ -84,7 +84,7 @@ class ListasViewModel(
                 .onSuccess { result ->
                     val evento = when (result) {
                         SyncResult.Sucesso       -> SyncEvento.Sincronizada
-                        SyncResult.Conflito      -> SyncEvento.Conflito
+                        SyncResult.Mesclada      -> SyncEvento.Mesclada
                         SyncResult.Erro          -> SyncEvento.ErroRede
                         SyncResult.ListaDeletada -> SyncEvento.ListaDeletada
                     }

@@ -96,9 +96,20 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncNome TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncQuantidade TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncPreco INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncComprado INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncCategoria TEXT NOT NULL DEFAULT ''")
+        db.execSQL("UPDATE itens_feira SET syncNome = nome, syncQuantidade = quantidade, syncPreco = preco, syncComprado = comprado, syncCategoria = categoria")
+    }
+}
+
 @Database(
     entities = [ListaFeira::class, ItemFeira::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(CategoriaConverter::class)
@@ -120,7 +131,7 @@ abstract class NossaFeiraDatabase : RoomDatabase() {
                     NossaFeiraDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build().also { INSTANCE = it }
             }
     }

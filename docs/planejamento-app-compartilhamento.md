@@ -51,7 +51,17 @@ db.execSQL("""
 """)
 ```
 
-**Banco atualmente na versão 5.**
+### MIGRATION_5_6 — Snapshot por item para merge three-way
+```kotlin
+db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncNome TEXT NOT NULL DEFAULT ''")
+db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncQuantidade TEXT NOT NULL DEFAULT ''")
+db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncPreco INTEGER NOT NULL DEFAULT 0")
+db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncComprado INTEGER NOT NULL DEFAULT 0")
+db.execSQL("ALTER TABLE itens_feira ADD COLUMN syncCategoria TEXT NOT NULL DEFAULT ''")
+db.execSQL("UPDATE itens_feira SET syncNome = nome, syncQuantidade = quantidade, syncPreco = preco, syncComprado = comprado, syncCategoria = categoria")
+```
+
+**Banco atualmente na versão 6.**
 
 ---
 
@@ -82,7 +92,12 @@ data class ItemFeira(
     val preco: Int = 0,
     val comprado: Boolean = false,
     val criadoEm: Long = System.currentTimeMillis(),
-    val remoteItemId: String = UUID.randomUUID().toString() // UUID para identificar item no backend
+    val remoteItemId: String = UUID.randomUUID().toString(), // UUID para identificar item no backend
+    val syncNome: String = "",           // snapshot do último sync — merge three-way
+    val syncQuantidade: String = "",
+    val syncPreco: Int = 0,
+    val syncComprado: Boolean = false,
+    val syncCategoria: String = ""
 )
 ```
 
@@ -105,7 +120,7 @@ O `NossaFeiraRepository` atualiza `updatedAt` da lista pai via `listaDao.atualiz
 ```
 app/src/main/java/com/example/nossafeira/
 ├── data/
-│   ├── db/          → NossaFeiraDatabase.kt (v5, MIGRATION_1_2 até MIGRATION_4_5)
+│   ├── db/          → NossaFeiraDatabase.kt (v6, MIGRATION_1_2 até MIGRATION_5_6)
 │   ├── model/       → ListaFeira.kt, ItemFeira.kt, ListaComItens.kt
 │   ├── dao/         → ListaFeiraDao.kt, ItemFeiraDao.kt
 │   ├── remote/
@@ -173,19 +188,19 @@ class AuthInterceptor : Interceptor {
 ```kotlin
 suspend fun compartilharLista(listaComItens: ListaComItens)
 // POST /listas → salva remoteId, isShared=true, syncedAt=now
+// Após push: atualizarSnapshot(listaId) → define baseline para merge futuro
 
 suspend fun sincronizarLista(listaComItens: ListaComItens): SyncResult
 // GET /listas/{remoteId}
 //   404 → marcarComoLocal() → SyncResult.ListaDeletada
-//   localTemMudancas && remoteTemMudancas → vence o updatedAt mais recente
-//   só localTemMudancas → PUT com versão local → SyncResult.Sucesso
-//   só remoteTemMudancas → aplica versão do backend → SyncResult.Conflito
+//   só localTemMudancas → PUT com versão local + atualizarSnapshot → SyncResult.Sucesso
+//   remoteTemMudancas → merge three-way (mergeItens) + PUT merged + atualizarSnapshot → SyncResult.Mesclada
 //   nenhum mudou → SyncResult.Sucesso
 
 suspend fun pullStartup()
 // GET /listas → para cada lista remota:
-//   - não existe localmente → insere no Room, syncedAt = remote.updatedAt
-//   - existe e backend.updatedAt > syncedAt → sobrescreve local, syncedAt = remote.updatedAt
+//   - não existe localmente → insere no Room, syncedAt = remote.updatedAt (snapshot via toItem)
+//   - existe e backend.updatedAt > syncedAt → merge three-way (mergeItens), syncedAt = remote.updatedAt
 // Após processar remotas: listas locais com isShared=true cujo remoteId não veio no response → marcarComoLocal()
 // Nota: syncedAt usa sempre o timestamp do servidor (não o relógio do dispositivo) para evitar clock skew
 
@@ -193,15 +208,30 @@ suspend fun deletarListaCompartilhada(lista: ListaFeira)
 // DELETE /listas/{remoteId} → deleta do Room
 ```
 
+### Merge Three-Way (`mergeItens`)
+
+Itens são cruzados por `remoteItemId`. Para cada par local/remote, compara campos atuais com snapshot (`sync*`) para detectar qual lado mudou:
+
+| Local vs snapshot | Remote vs snapshot | Ação |
+|---|---|---|
+| Igual | Igual | Nada (manter local) |
+| Diferente | Igual | Manter local (só local editou) |
+| Igual | Diferente | Aceitar remote (só remote editou) |
+| Diferente | Diferente | Aceitar remote (último push ganha) |
+
+- Itens só no local (sem correspondência no remote) → **preservados** (nunca deletados)
+- Itens só no remote → **inseridos**
+- Após push: `itemDao.atualizarSnapshot(listaId)` sincroniza snapshot = valores atuais
+
 ### SyncResult
 ```kotlin
-enum class SyncResult { Sucesso, Conflito, Erro, ListaDeletada }
+enum class SyncResult { Sucesso, Mesclada, Erro, ListaDeletada }
 ```
 
 ### Mappers (privados no Repository)
 - `ItemFeira.toDto()` — usa `remoteItemId` como `id`
 - `ListaDto.toLista()` — converte para `ListaFeira` com `isShared=true`
-- `ItemDto.toItem(listaId)` — preserva `remoteItemId` vindo do backend
+- `ItemDto.toItem(listaId)` — preserva `remoteItemId` vindo do backend, snapshot = valores do item
 
 ---
 
@@ -228,7 +258,7 @@ fun editarLista(lista: ListaFeira, novoNome: String, novoValor: Int) // atualiza
 
 ### SyncEvento
 ```kotlin
-enum class SyncEvento { Compartilhada, Sincronizada, Conflito, ErroRede, ListaDeletada, PullConcluido }
+enum class SyncEvento { Compartilhada, Sincronizada, Mesclada, ErroRede, ListaDeletada, PullConcluido }
 ```
 
 ### Mensagens de Toast
@@ -236,7 +266,7 @@ enum class SyncEvento { Compartilhada, Sincronizada, Conflito, ErroRede, ListaDe
 |--------|----------|
 | Compartilhada | "Lista compartilhada com sucesso." |
 | Sincronizada | "Lista sincronizada com sucesso." |
-| Conflito | "Lista atualizada. Suas alterações locais foram substituídas." |
+| Mesclada | "Lista sincronizada. Novos itens foram adicionados." |
 | ErroRede | "Falha na sincronização. Verifique sua conexão." |
 | ListaDeletada | "A lista foi removida pelo outro membro e voltou a ser local." |
 | PullConcluido | "Listas sincronizadas com sucesso." |

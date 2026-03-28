@@ -27,5 +27,10 @@ data class ItemFeira(
     val preco: Int = 0,
     val comprado: Boolean = false,
     val criadoEm: Long = System.currentTimeMillis(),
-    val remoteItemId: String = UUID.randomUUID().toString()
+    val remoteItemId: String = UUID.randomUUID().toString(),
+    val syncNome: String = "",
+    val syncQuantidade: String = "",
+    val syncPreco: Int = 0,
+    val syncComprado: Boolean = false,
+    val syncCategoria: String = ""
 )

@@ -198,14 +198,14 @@ class ListasViewModelTest {
     }
 
     @Test
-    fun `sincronizarLista emite Conflito quando resultado e Conflito`() = runTest(dispatcher) {
+    fun `sincronizarLista emite Mesclada quando resultado e Mesclada`() = runTest(dispatcher) {
         val listaComItens = listaComItens("Feira")
-        coEvery { repository.sincronizarLista(listaComItens) } returns SyncResult.Conflito
+        coEvery { repository.sincronizarLista(listaComItens) } returns SyncResult.Mesclada
 
         val eventoDeferred = async { viewModel.syncEvento.first() }
 
         viewModel.sincronizarLista(listaComItens)
 
-        assertEquals(SyncEvento.Conflito, eventoDeferred.await())
+        assertEquals(SyncEvento.Mesclada, eventoDeferred.await())
     }
 }

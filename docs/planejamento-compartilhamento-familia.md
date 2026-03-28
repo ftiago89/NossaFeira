@@ -187,19 +187,32 @@ src/
   2. **Manual global**: botão Refresh (↺) na TopBar da tela de listagem → chama `pullStartup()` com feedback visual
   3. **Manual por lista**: ícone de sync em cada ListaCard compartilhado
 
-### Estratégia de Conflito
+### Estratégia de Conflito — Merge Three-Way com Snapshot
 
-Comparação via `syncedAt` (timestamp do servidor no momento do último sync bem-sucedido — usa `remote.updatedAt`, não o relógio local do dispositivo, para evitar clock skew):
+A resolução de conflitos opera em dois níveis:
+
+**Nível lista** — comparação via `syncedAt` (timestamp do servidor):
 
 | `local.updatedAt > syncedAt` | `remote.updatedAt > syncedAt` | Resultado |
 |---|---|---|
 | Não | Não | Nada a fazer |
 | Sim | Não | Só local mudou → PUT com versão local |
-| Não | Sim | Só remote mudou → aplica versão do backend |
-| Sim | Sim | Ambos mudaram → vence o `updatedAt` mais recente |
+| Não/Sim | Sim | Remote mudou → merge three-way por item + PUT merged |
 
-- A lista é sempre tratada como unidade atômica (sem merge por item)
-- Usuário é notificado via Toast quando suas alterações locais são substituídas (Conflito)
+**Nível item** — merge three-way usando snapshot (`sync*` fields no `ItemFeira`):
+
+Cada item tem campos de snapshot (`syncNome`, `syncQuantidade`, `syncPreco`, `syncComprado`, `syncCategoria`) gravados no último sync. No merge, compara-se local vs snapshot e remote vs snapshot:
+
+| Local vs snapshot | Remote vs snapshot | Ação |
+|---|---|---|
+| Igual | Igual | Nada (manter local) |
+| Diferente | Igual | Manter local (só local editou) |
+| Igual | Diferente | Aceitar remote (só remote editou) |
+| Diferente | Diferente | Aceitar remote (último push ganha) |
+
+- Itens só no local → **preservados** (nunca deletados durante sync)
+- Itens só no remote → **inseridos**
+- Após push: snapshot é atualizado para refletir o estado sincronizado
 - Se o backend retorna 404 ao sincronizar, a lista volta a ser local (`isShared=false`, `remoteId=null`)
 
 ---
