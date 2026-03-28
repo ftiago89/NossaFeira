@@ -115,7 +115,7 @@ fun AddItemSheet(
         AddItemSheetContent(
             onConfirm = onConfirm,
             nomeInicial = itemParaEditar?.nome ?: "",
-            quantidadeInicial = itemParaEditar?.quantidade ?: "",
+            quantidadeInicial = itemParaEditar?.quantidade ?: "1",
             precoInicial = if ((itemParaEditar?.preco ?: 0) > 0)
                 "%.2f".format(itemParaEditar!!.preco / 100.0).replace('.', ',') else "",
             categoriaInicial = itemParaEditar?.categoria,

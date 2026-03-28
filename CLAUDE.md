@@ -314,7 +314,7 @@ fun ItemCard(
 #### Campos:
 - Label de campo: 12sp semibold uppercase, cor TextSecondary, letter-spacing 0.5
 - Input: background Surface2, border 1.5dp (Border normal / Primary em foco), radius 10dp
-- Campos: "Nome do item", "Quantidade" e "PREÇO R$ (OPCIONAL)" (teclado decimal, convertido para `Int` em centavos)
+- Campos: "Nome do item", "Quantidade" (pré-preenchido com "1" no modo criação) e "PREÇO R$ (OPCIONAL)" (teclado decimal, convertido para `Int` em centavos)
 
 #### Campo de preço — câmera OCR:
 O campo de preço é uma `Row` com o input e um botão de câmera 48×48dp ao lado:
@@ -367,7 +367,7 @@ fun AddItemSheet(
 - **Marcar item**: toque no checkbox → alterna `comprado`, atualiza progress bar e badge
 - **Filtrar**: toque no chip → filtra lista por categoria, atualiza contador da seção
 - **Adicionar**: FAB → abre BottomSheet; validar nome não vazio e categoria selecionada
-- **Deletar item**: ícone lixeira (Pink) no final do ItemCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
+- **Deletar item**: ícone lixeira (Pink) no final do ItemCard
 - **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
 - **Editar item**: long press no ItemCard → abre `AddItemSheet` em modo edição com campos pré-preenchidos; ao confirmar chama `ItensViewModel.editarItem`
 - **Editar lista**: long press no ListaCard → abre `AddListaSheet` em modo edição com nome e valor pré-preenchidos; ao confirmar chama `ListasViewModel.editarLista` — atualiza `updatedAt`, propagando a mudança no sync
