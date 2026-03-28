@@ -1,15 +1,20 @@
 package com.example.nossafeira.ui.screens.itens
 
 import android.Manifest
+import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.result.contract.ActivityResultContracts.TakePicture
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +58,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.nossafeira.R
 import com.example.nossafeira.data.model.Categoria
 import com.example.nossafeira.data.model.ItemFeira
 import com.example.nossafeira.ui.components.AddItemSheet
@@ -101,6 +107,9 @@ fun ItensScreen(
     var precoSugeridos by rememberSaveable { mutableStateOf(listOf<Int>()) }
     var isProcessandoOcr by rememberSaveable { mutableStateOf(false) }
     var fotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+
+    // Estado da entrada por voz
+    var nomeReconhecido by rememberSaveable { mutableStateOf<String?>(null) }
 
     val totalItens = listaComItens?.itens?.size ?: 0
     val itensComprados = listaComItens?.itens?.count { it.comprado } ?: 0
@@ -162,6 +171,37 @@ fun ItensScreen(
         }
     }
 
+    // Launcher de reconhecimento de voz
+    val speechLauncher = rememberLauncherForActivityResult(StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spoken = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+            if (!spoken.isNullOrBlank()) {
+                nomeReconhecido = spoken
+            }
+        }
+    }
+
+    // Launcher de permissão de microfone
+    val micPermissaoLauncher = rememberLauncherForActivityResult(RequestPermission()) { concedida ->
+        if (concedida) {
+            launchSpeechRecognizer(context, speechLauncher)
+        } else {
+            Toast.makeText(context, context.getString(R.string.voice_permission_needed), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun solicitarVozOuAbrir() {
+        nomeReconhecido = null
+        when {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED -> {
+                launchSpeechRecognizer(context, speechLauncher)
+            }
+            else -> micPermissaoLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     Scaffold(
         containerColor = Background,
         topBar = {
@@ -173,6 +213,7 @@ fun ItensScreen(
         floatingActionButton = {
             NossaFeiraFab(onClick = {
                 precoSugeridos = emptyList()
+                nomeReconhecido = null
                 mostrarAddSheet = true
             })
         }
@@ -222,6 +263,7 @@ fun ItensScreen(
                         onDelete = { viewModel.deletarItem(item) },
                         onLongClick = {
                             precoSugeridos = emptyList()
+                            nomeReconhecido = null
                             itemParaEditar = item
                         },
                         modifier = Modifier
@@ -238,15 +280,19 @@ fun ItensScreen(
             onDismiss = {
                 mostrarAddSheet = false
                 precoSugeridos = emptyList()
+                nomeReconhecido = null
             },
             onConfirm = { nome, quantidade, categoria, preco ->
                 viewModel.adicionarItem(nome, quantidade, categoria, preco)
                 mostrarAddSheet = false
                 precoSugeridos = emptyList()
+                nomeReconhecido = null
             },
             onCameraRequest = { solicitarCameraOuAbrir() },
             precoSugeridos = precoSugeridos,
-            isProcessandoOcr = isProcessandoOcr
+            isProcessandoOcr = isProcessandoOcr,
+            onVoiceRequest = { solicitarVozOuAbrir() },
+            nomeReconhecido = nomeReconhecido
         )
     }
 
@@ -255,17 +301,36 @@ fun ItensScreen(
             onDismiss = {
                 itemParaEditar = null
                 precoSugeridos = emptyList()
+                nomeReconhecido = null
             },
             onConfirm = { nome, quantidade, categoria, preco ->
                 viewModel.editarItem(item, nome, quantidade, categoria, preco)
                 itemParaEditar = null
                 precoSugeridos = emptyList()
+                nomeReconhecido = null
             },
             itemParaEditar = item,
             onCameraRequest = { solicitarCameraOuAbrir() },
             precoSugeridos = precoSugeridos,
-            isProcessandoOcr = isProcessandoOcr
+            isProcessandoOcr = isProcessandoOcr,
+            onVoiceRequest = { solicitarVozOuAbrir() },
+            nomeReconhecido = nomeReconhecido
         )
+    }
+}
+
+// ── Helper de voz ────────────────────────────────────────────────────────────
+
+private fun launchSpeechRecognizer(context: Context, launcher: ActivityResultLauncher<Intent>) {
+    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
+        putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_prompt))
+    }
+    if (intent.resolveActivity(context.packageManager) != null) {
+        launcher.launch(intent)
+    } else {
+        Toast.makeText(context, context.getString(R.string.voice_not_available), Toast.LENGTH_SHORT).show()
     }
 }
 

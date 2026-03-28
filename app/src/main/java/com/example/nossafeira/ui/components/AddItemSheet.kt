@@ -101,7 +101,9 @@ fun AddItemSheet(
     itemParaEditar: ItemFeira? = null,
     onCameraRequest: () -> Unit = {},
     precoSugeridos: List<Int> = emptyList(),
-    isProcessandoOcr: Boolean = false
+    isProcessandoOcr: Boolean = false,
+    onVoiceRequest: () -> Unit = {},
+    nomeReconhecido: String? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -122,7 +124,9 @@ fun AddItemSheet(
             modoEdicao = itemParaEditar != null,
             onCameraRequest = onCameraRequest,
             precoSugeridos = precoSugeridos,
-            isProcessandoOcr = isProcessandoOcr
+            isProcessandoOcr = isProcessandoOcr,
+            onVoiceRequest = onVoiceRequest,
+            nomeReconhecido = nomeReconhecido
         )
     }
 }
@@ -137,7 +141,9 @@ private fun AddItemSheetContent(
     modoEdicao: Boolean = false,
     onCameraRequest: () -> Unit = {},
     precoSugeridos: List<Int> = emptyList(),
-    isProcessandoOcr: Boolean = false
+    isProcessandoOcr: Boolean = false,
+    onVoiceRequest: () -> Unit = {},
+    nomeReconhecido: String? = null
 ) {
     var nome by remember { mutableStateOf(nomeInicial) }
     var quantidade by remember { mutableStateOf(quantidadeInicial) }
@@ -162,20 +168,50 @@ private fun AddItemSheetContent(
             color = TextPrimary
         )
 
+        // Preenche o nome quando o reconhecimento de voz retorna resultado
+        LaunchedEffect(nomeReconhecido) {
+            if (!nomeReconhecido.isNullOrBlank()) {
+                nome = nomeReconhecido
+            }
+        }
+
         // Campo nome
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             CampoLabel("NOME DO ITEM")
-            CampoTexto(
-                value = nome,
-                onValueChange = { nome = it },
-                placeholder = "Ex: Alface crespa",
-                focado = nomeFocado,
-                onFocusChange = { nomeFocado = it },
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Next
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CampoTexto(
+                    value = nome,
+                    onValueChange = { nome = it },
+                    placeholder = "Ex: Alface crespa",
+                    focado = nomeFocado,
+                    onFocusChange = { nomeFocado = it },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
-            )
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Surface2)
+                        .border(1.5.dp, Border, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = onVoiceRequest) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_mic),
+                            contentDescription = "Entrada por voz",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
         }
 
         // Campo quantidade
