@@ -232,66 +232,164 @@ class NossaFeiraRepositoryTest {
         val remoteDto = listaDto(updatedAtMs = 0L)
         coEvery { remote.getLista("remote-1") } returns remoteDto
         coEvery { remote.atualizarLista(any(), any()) } returns remoteDto
+        coJustRun { itemDao.atualizarSnapshot(any()) }
         coJustRun { listaDao.atualizarSyncedAt(any(), any()) }
 
         val result = repository.sincronizarLista(listaComItens(listaLocal))
 
         assertEquals(SyncResult.Sucesso, result)
         coVerify { remote.atualizarLista(eq("remote-1"), any<PutListaRequest>()) }
+        coVerify { itemDao.atualizarSnapshot(listaLocal.id) }
         coVerify { listaDao.atualizarSyncedAt(listaLocal.id, any()) }
     }
 
     @Test
-    fun `sincronizarLista aplica remote quando so remote mudou`() = runTest {
-        // updatedAt=0 (= syncedAt=0) → local NÃO mudou
-        // remoteUpdatedAt=1000 > syncedAt=0 → remote mudou
+    fun `sincronizarLista faz merge e push quando so remote mudou`() = runTest {
         val listaLocal = lista(updatedAt = 0L, syncedAt = 0L)
         val remoteDto = listaDto(updatedAtMs = 1000L)
         coEvery { remote.getLista("remote-1") } returns remoteDto
+        coEvery { itemDao.buscarPorLista(listaLocal.id) } returns emptyList()
         coJustRun { listaDao.atualizar(any()) }
-        coJustRun { itemDao.deletarPorLista(any()) }
-        coJustRun { itemDao.inserirTodos(any()) }
+        coEvery { remote.atualizarLista(any(), any()) } returns remoteDto
+        coJustRun { itemDao.atualizarSnapshot(any()) }
         coJustRun { listaDao.atualizarSyncedAt(any(), any()) }
 
         val result = repository.sincronizarLista(listaComItens(listaLocal))
 
-        assertEquals(SyncResult.Conflito, result)
+        assertEquals(SyncResult.Mesclada, result)
         coVerify { listaDao.atualizar(any()) }
-        coVerify { itemDao.deletarPorLista(listaLocal.id) }
+        coVerify { remote.atualizarLista(eq("remote-1"), any<PutListaRequest>()) }
+        coVerify { itemDao.atualizarSnapshot(listaLocal.id) }
         coVerify { listaDao.atualizarSyncedAt(listaLocal.id, any()) }
     }
 
     @Test
-    fun `sincronizarLista envia local quando ambos mudaram e local e mais recente`() = runTest {
-        // local.updatedAt=2000 >= remoteUpdatedAt=1000 → local ganha
+    fun `sincronizarLista faz merge e push quando ambos mudaram`() = runTest {
         val listaLocal = lista(updatedAt = 2000L, syncedAt = 0L)
-        val remoteDto = listaDto(updatedAtMs = 1000L)
+        val remoteDto = listaDto(updatedAtMs = 1000L, itens = listOf(
+            ItemDto("remote-item-1", "Arroz", "1kg", "OUTROS", 0, false, 0L)
+        ))
         coEvery { remote.getLista("remote-1") } returns remoteDto
+        coEvery { itemDao.buscarPorLista(listaLocal.id) } returns emptyList()
+        coEvery { itemDao.inserir(any()) } returns 50L
+        coJustRun { listaDao.atualizar(any()) }
         coEvery { remote.atualizarLista(any(), any()) } returns remoteDto
+        coJustRun { itemDao.atualizarSnapshot(any()) }
         coJustRun { listaDao.atualizarSyncedAt(any(), any()) }
 
         val result = repository.sincronizarLista(listaComItens(listaLocal))
 
-        assertEquals(SyncResult.Sucesso, result)
+        assertEquals(SyncResult.Mesclada, result)
         coVerify { remote.atualizarLista(eq("remote-1"), any<PutListaRequest>()) }
     }
 
     @Test
-    fun `sincronizarLista aplica remote quando ambos mudaram e remote e mais recente`() = runTest {
-        // remoteUpdatedAt=2000 > local.updatedAt=1000 → remote ganha
-        val listaLocal = lista(updatedAt = 1000L, syncedAt = 0L)
-        val remoteDto = listaDto(updatedAtMs = 2000L)
+    fun `sincronizarLista merge preserva itens so locais`() = runTest {
+        val itemLocal = item(id = 10, listaId = 1).copy(remoteItemId = "local-only-item")
+        val listaLocal = lista(updatedAt = 0L, syncedAt = 0L)
+        val remoteDto = listaDto(updatedAtMs = 1000L, itens = listOf(
+            ItemDto("remote-item-1", "Arroz", "1kg", "OUTROS", 0, false, 0L)
+        ))
         coEvery { remote.getLista("remote-1") } returns remoteDto
+        coEvery { itemDao.buscarPorLista(listaLocal.id) } returns listOf(itemLocal)
+        coEvery { itemDao.inserir(any()) } returns 50L
         coJustRun { listaDao.atualizar(any()) }
-        coJustRun { itemDao.deletarPorLista(any()) }
-        coJustRun { itemDao.inserirTodos(any()) }
+        coEvery { remote.atualizarLista(any(), any()) } returns remoteDto
+        coJustRun { itemDao.atualizarSnapshot(any()) }
         coJustRun { listaDao.atualizarSyncedAt(any(), any()) }
 
-        val result = repository.sincronizarLista(listaComItens(listaLocal))
+        repository.sincronizarLista(listaComItens(listaLocal, listOf(itemLocal)))
 
-        assertEquals(SyncResult.Conflito, result)
-        coVerify(exactly = 0) { remote.atualizarLista(any(), any()) }
-        coVerify { listaDao.atualizar(any()) }
+        // Item local preservado: não foi deletado
+        coVerify(exactly = 0) { itemDao.deletarPorLista(any()) }
+        coVerify(exactly = 0) { itemDao.deletarPorId(any()) }
+        // Item novo do remote foi inserido
+        coVerify { itemDao.inserir(any()) }
+    }
+
+    @Test
+    fun `sincronizarLista merge aceita remote quando item local nao mudou`() = runTest {
+        // Item local com snapshot = valores atuais (não foi editado)
+        // Remote tem valores diferentes → remote mudou → aceitar remote
+        val itemLocal = item(id = 10, listaId = 1, comprado = false)
+            .copy(
+                remoteItemId = "shared-item",
+                syncNome = "Arroz", syncQuantidade = "1",
+                syncPreco = 0, syncComprado = false, syncCategoria = "OUTROS"
+            )
+        val listaLocal = lista(updatedAt = 0L, syncedAt = 0L)
+        val remoteDto = listaDto(updatedAtMs = 1000L, itens = listOf(
+            ItemDto("shared-item", "Arroz", "2kg", "OUTROS", 999, true, 0L)
+        ))
+        coEvery { remote.getLista("remote-1") } returns remoteDto
+        coEvery { itemDao.buscarPorLista(listaLocal.id) } returns listOf(itemLocal)
+        coJustRun { itemDao.atualizar(any()) }
+        coJustRun { listaDao.atualizar(any()) }
+        coEvery { remote.atualizarLista(any(), any()) } returns remoteDto
+        coJustRun { itemDao.atualizarSnapshot(any()) }
+        coJustRun { listaDao.atualizarSyncedAt(any(), any()) }
+
+        repository.sincronizarLista(listaComItens(listaLocal, listOf(itemLocal)))
+
+        // Remote mudou, local não → aceita remote
+        coVerify { itemDao.atualizar(match { it.id == 10 && it.comprado && it.preco == 999 }) }
+    }
+
+    @Test
+    fun `sincronizarLista merge mantem local quando so local mudou`() = runTest {
+        // Item local foi editado (comprado=true, snapshot diz comprado=false)
+        // Remote é igual ao snapshot → remote não mudou → manter local
+        val itemLocal = item(id = 10, listaId = 1, comprado = true)
+            .copy(
+                remoteItemId = "shared-item",
+                syncNome = "Arroz", syncQuantidade = "1",
+                syncPreco = 0, syncComprado = false, syncCategoria = "OUTROS"
+            )
+        val listaLocal = lista(updatedAt = 2000L, syncedAt = 0L)
+        val remoteDto = listaDto(updatedAtMs = 1000L, itens = listOf(
+            // Remote idêntico ao snapshot: nome=Arroz, qtd=1, preco=0, comprado=false
+            ItemDto("shared-item", "Arroz", "1", "OUTROS", 0, false, 0L)
+        ))
+        coEvery { remote.getLista("remote-1") } returns remoteDto
+        coEvery { itemDao.buscarPorLista(listaLocal.id) } returns listOf(itemLocal)
+        coJustRun { listaDao.atualizar(any()) }
+        coEvery { remote.atualizarLista(any(), any()) } returns remoteDto
+        coJustRun { itemDao.atualizarSnapshot(any()) }
+        coJustRun { listaDao.atualizarSyncedAt(any(), any()) }
+
+        repository.sincronizarLista(listaComItens(listaLocal, listOf(itemLocal)))
+
+        // Só local mudou → não chama itemDao.atualizar (mantém versão local)
+        coVerify(exactly = 0) { itemDao.atualizar(any()) }
+    }
+
+    @Test
+    fun `sincronizarLista merge aceita remote quando ambos mudaram`() = runTest {
+        // Item local editado (comprado=true) E remote editado (preco=999)
+        // Ambos diferem do snapshot → ambos mudaram → remote ganha
+        val itemLocal = item(id = 10, listaId = 1, comprado = true)
+            .copy(
+                remoteItemId = "shared-item",
+                syncNome = "Arroz", syncQuantidade = "1",
+                syncPreco = 0, syncComprado = false, syncCategoria = "OUTROS"
+            )
+        val listaLocal = lista(updatedAt = 2000L, syncedAt = 0L)
+        val remoteDto = listaDto(updatedAtMs = 1500L, itens = listOf(
+            // Remote diferente do snapshot: preco mudou para 999
+            ItemDto("shared-item", "Arroz", "1", "OUTROS", 999, false, 0L)
+        ))
+        coEvery { remote.getLista("remote-1") } returns remoteDto
+        coEvery { itemDao.buscarPorLista(listaLocal.id) } returns listOf(itemLocal)
+        coJustRun { itemDao.atualizar(any()) }
+        coJustRun { listaDao.atualizar(any()) }
+        coEvery { remote.atualizarLista(any(), any()) } returns remoteDto
+        coJustRun { itemDao.atualizarSnapshot(any()) }
+        coJustRun { listaDao.atualizarSyncedAt(any(), any()) }
+
+        repository.sincronizarLista(listaComItens(listaLocal, listOf(itemLocal)))
+
+        // Ambos mudaram → remote ganha (preco=999, comprado=false)
+        coVerify { itemDao.atualizar(match { it.id == 10 && !it.comprado && it.preco == 999 }) }
     }
 
     // ── pullStartup ───────────────────────────────────────────────────────────
@@ -314,22 +412,22 @@ class NossaFeiraRepositoryTest {
     }
 
     @Test
-    fun `pullStartup atualiza lista existente quando remote e mais recente`() = runTest {
-        // remoteUpdatedAt=1000 > local.syncedAt=0 → atualiza
+    fun `pullStartup faz merge em lista existente quando remote e mais recente`() = runTest {
+        // remoteUpdatedAt=1000 > local.syncedAt=0 → merge aditivo
         val remoteDto = listaDto(id = "remote-1", updatedAtMs = 1000L)
         val localExistente = listaComItens(lista(id = 5, syncedAt = 0L))
         coEvery { remote.getListas() } returns ListaPageDto(listOf(remoteDto), 0, 50, 1)
         coEvery { listaDao.buscarPorRemoteId("remote-1") } returns localExistente
+        coEvery { itemDao.buscarPorLista(5) } returns emptyList()
         coJustRun { listaDao.atualizar(any()) }
-        coJustRun { itemDao.deletarPorLista(any()) }
-        coJustRun { itemDao.inserirTodos(any()) }
         coJustRun { listaDao.atualizarSyncedAt(any(), any()) }
         coEvery { listaDao.buscarTodasCompartilhadas() } returns emptyList()
 
         repository.pullStartup()
 
         coVerify { listaDao.atualizar(any()) }
-        coVerify { itemDao.deletarPorLista(5) }
+        // Merge aditivo: não deleta itens da lista
+        coVerify(exactly = 0) { itemDao.deletarPorLista(any()) }
     }
 
     @Test

@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
@@ -18,15 +21,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.res.painterResource
+import com.example.nossafeira.R
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +71,7 @@ import com.example.nossafeira.ui.theme.Yellow
 import com.example.nossafeira.ui.theme.YellowDim
 import com.example.nossafeira.ui.theme.Surface
 import com.example.nossafeira.ui.theme.Surface2
+import com.example.nossafeira.ui.theme.Surface3
 import com.example.nossafeira.ui.theme.TextPrimary
 import com.example.nossafeira.ui.theme.TextSecondary
 import com.example.nossafeira.ui.theme.TextTertiary
@@ -88,7 +98,12 @@ private val categoriaOptions = listOf(
 fun AddItemSheet(
     onDismiss: () -> Unit,
     onConfirm: (nome: String, quantidade: String, categoria: Categoria, preco: Int) -> Unit,
-    itemParaEditar: ItemFeira? = null
+    itemParaEditar: ItemFeira? = null,
+    onCameraRequest: () -> Unit = {},
+    precoSugeridos: List<Int> = emptyList(),
+    isProcessandoOcr: Boolean = false,
+    onVoiceRequest: () -> Unit = {},
+    nomeReconhecido: String? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -102,11 +117,16 @@ fun AddItemSheet(
         AddItemSheetContent(
             onConfirm = onConfirm,
             nomeInicial = itemParaEditar?.nome ?: "",
-            quantidadeInicial = itemParaEditar?.quantidade ?: "",
+            quantidadeInicial = itemParaEditar?.quantidade ?: "1",
             precoInicial = if ((itemParaEditar?.preco ?: 0) > 0)
                 "%.2f".format(itemParaEditar!!.preco / 100.0).replace('.', ',') else "",
             categoriaInicial = itemParaEditar?.categoria,
-            modoEdicao = itemParaEditar != null
+            modoEdicao = itemParaEditar != null,
+            onCameraRequest = onCameraRequest,
+            precoSugeridos = precoSugeridos,
+            isProcessandoOcr = isProcessandoOcr,
+            onVoiceRequest = onVoiceRequest,
+            nomeReconhecido = nomeReconhecido
         )
     }
 }
@@ -118,7 +138,12 @@ private fun AddItemSheetContent(
     quantidadeInicial: String = "",
     precoInicial: String = "",
     categoriaInicial: Categoria? = null,
-    modoEdicao: Boolean = false
+    modoEdicao: Boolean = false,
+    onCameraRequest: () -> Unit = {},
+    precoSugeridos: List<Int> = emptyList(),
+    isProcessandoOcr: Boolean = false,
+    onVoiceRequest: () -> Unit = {},
+    nomeReconhecido: String? = null
 ) {
     var nome by remember { mutableStateOf(nomeInicial) }
     var quantidade by remember { mutableStateOf(quantidadeInicial) }
@@ -143,20 +168,50 @@ private fun AddItemSheetContent(
             color = TextPrimary
         )
 
+        // Preenche o nome quando o reconhecimento de voz retorna resultado
+        LaunchedEffect(nomeReconhecido) {
+            if (!nomeReconhecido.isNullOrBlank()) {
+                nome = nomeReconhecido
+            }
+        }
+
         // Campo nome
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             CampoLabel("NOME DO ITEM")
-            CampoTexto(
-                value = nome,
-                onValueChange = { nome = it },
-                placeholder = "Ex: Alface crespa",
-                focado = nomeFocado,
-                onFocusChange = { nomeFocado = it },
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Next
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CampoTexto(
+                    value = nome,
+                    onValueChange = { nome = it },
+                    placeholder = "Ex: Alface crespa",
+                    focado = nomeFocado,
+                    onFocusChange = { nomeFocado = it },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Next
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
-            )
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Surface2)
+                        .border(1.5.dp, Border, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = onVoiceRequest) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_mic),
+                            contentDescription = "Entrada por voz",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
         }
 
         // Campo quantidade
@@ -176,19 +231,82 @@ private fun AddItemSheetContent(
         }
 
         // Campo preço (opcional)
+        // Quando há 1 candidato vindo do OCR, preenche o campo automaticamente
+        LaunchedEffect(precoSugeridos) {
+            if (precoSugeridos.size == 1) {
+                precoTexto = "%.2f".format(precoSugeridos[0] / 100.0).replace('.', ',')
+            }
+        }
+
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             CampoLabel("PREÇO R$ (OPCIONAL)")
-            CampoTexto(
-                value = precoTexto,
-                onValueChange = { precoTexto = it },
-                placeholder = "0,00",
-                focado = precoFocado,
-                onFocusChange = { precoFocado = it },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Done
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CampoTexto(
+                    value = precoTexto,
+                    onValueChange = { precoTexto = it },
+                    placeholder = "0,00",
+                    focado = precoFocado,
+                    onFocusChange = { precoFocado = it },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Done
+                    ),
+                    modifier = Modifier.weight(1f)
                 )
-            )
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Surface2)
+                        .border(1.5.dp, Border, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isProcessandoOcr) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Primary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(onClick = onCameraRequest) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_camera_alt),
+                                contentDescription = "Fotografar etiqueta de preço",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Chips de candidatos (exibidos quando OCR retorna 2+ preços)
+            if (precoSugeridos.size >= 2) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(precoSugeridos) { centavos ->
+                        val label = "R$ ${"%.2f".format(centavos / 100.0).replace('.', ',')}"
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Surface3)
+                                .border(1.5.dp, Border, RoundedCornerShape(20.dp))
+                                .clickable {
+                                    precoTexto = "%.2f".format(centavos / 100.0).replace('.', ',')
+                                }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // Grade de categorias 2×2

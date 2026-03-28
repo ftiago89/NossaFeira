@@ -2,6 +2,27 @@
 
 ---
 
+## v1.2.0 — 2026-03-28
+
+### Novidades
+
+- **Preenchimento de preço por foto**: botão de câmera ao lado do campo de preço no formulário de item. Tira foto da etiqueta, ML Kit extrai o texto e os preços candidatos são sugeridos automaticamente (1 candidato preenche direto, 2+ exibem chips de escolha).
+- **Entrada por voz para nome do item**: botão de microfone ao lado do campo de nome. Lança o reconhecimento de fala do sistema (pt-BR) e preenche o campo automaticamente.
+- **Quantidade pré-preenchida**: campo quantidade agora inicia com "1" ao adicionar um novo item.
+- **Merge three-way na sincronização**: sincronização de listas compartilhadas agora usa snapshots por item (`sync*` fields) para merge three-way, evitando perda de edições concorrentes entre dispositivos.
+
+### Correções
+
+- Swipe-to-delete removido de ItemCard e ListaCard — deleção agora apenas pelo botão de lixeira, evitando exclusões acidentais.
+
+### Interno
+
+- `PrecoOcrExtractor.kt` adicionado: função pura para extrair preços de texto OCR (19 testes unitários).
+- `NossaFeiraRepositoryTest` expandido para 21 casos (10 cenários de merge three-way + 5 de pullStartup).
+- Migration `MIGRATION_5_6` adicionada. Banco na versão 6.
+
+---
+
 ## v1.1.0 — 2026-03-12
 
 ### Novidades
@@ -37,6 +58,6 @@
 - Valor estimado por lista.
 - Filtro de itens por categoria.
 - Marcar itens como comprados com feedback tátil e progress bar.
-- Swipe para deletar listas e itens.
+- Swipe para deletar listas. Itens deletados pelo botão de lixeira.
 - Valores monetários armazenados em centavos (inteiros).
 - Tema dark com paleta de cores customizada (Plus Jakarta Sans).
