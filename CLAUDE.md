@@ -378,7 +378,7 @@ fun AddItemSheet(
 - **Filtrar**: toque no chip → filtra lista por categoria, atualiza contador da seção
 - **Adicionar**: FAB → abre BottomSheet; validar nome não vazio e categoria selecionada
 - **Deletar item**: ícone lixeira (Pink) no final do ItemCard
-- **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard **ou** swipe horizontal (SwipeToDismissBox com background Pink)
+- **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard
 - **Editar item**: long press no ItemCard → abre `AddItemSheet` em modo edição com campos pré-preenchidos; ao confirmar chama `ItensViewModel.editarItem`
 - **Editar lista**: long press no ListaCard → abre `AddListaSheet` em modo edição com nome e valor pré-preenchidos; ao confirmar chama `ListasViewModel.editarLista` — atualiza `updatedAt`, propagando a mudança no sync
 - **Entrada por voz (nome)**: ícone microfone ao lado do campo de nome no `AddItemSheet` → solicita permissão `RECORD_AUDIO` → lança `ACTION_RECOGNIZE_SPEECH` (dialog do sistema, pt-BR) → resultado preenche o campo nome. Launchers ficam em `ItensScreen`. Estado `nomeReconhecido` em `rememberSaveable`.

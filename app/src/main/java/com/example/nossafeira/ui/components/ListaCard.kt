@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,14 +19,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -52,8 +47,6 @@ import com.example.nossafeira.ui.theme.GreenDim
 import com.example.nossafeira.ui.theme.NossaFeiraTheme
 import com.example.nossafeira.ui.theme.Orange
 import com.example.nossafeira.ui.theme.Pink
-import com.example.nossafeira.ui.theme.PinkDim
-import com.example.nossafeira.ui.theme.Primary
 import com.example.nossafeira.ui.theme.Primary
 import com.example.nossafeira.ui.theme.Surface
 import com.example.nossafeira.ui.theme.Surface3
@@ -61,7 +54,7 @@ import com.example.nossafeira.ui.theme.TextPrimary
 import com.example.nossafeira.ui.theme.TextSecondary
 import com.example.nossafeira.ui.theme.TextTertiary
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ListaCard(
     listaComItens: ListaComItens,
@@ -88,149 +81,120 @@ fun ListaCard(
     val corBarra by animateColorAsState(targetValue = corAlvo, label = "corBarra")
     val haptic = LocalHapticFeedback.current
 
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) { onDelete(); true } else false
-        },
-        positionalThreshold = { it * 0.4f }
-    )
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Surface)
+            .border(1.dp, Border, RoundedCornerShape(16.dp)),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Área principal — clicável para navegar, long press para editar
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onEditar()
+                    }
+                )
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = listaComItens.lista.nome,
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = modifier,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
+            Text(
+                text = dataCriacao,
+                style = MaterialTheme.typography.labelSmall,
+                color = TextTertiary
+            )
+
+            Text(
+                text = "$comprados de $total itens comprados",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+
+            if (listaComItens.lista.valorEstimado > 0) {
+                Text(
+                    text = "Estimado: R$ %.2f".format(listaComItens.lista.valorEstimado / 100.0),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextTertiary
+                )
+            }
+
+            if (totalGasto > 0) {
+                Text(
+                    text = "Gasto: R$ %.2f".format(totalGasto / 100.0),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Green
+                )
+            }
+
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(PinkDim),
-                contentAlignment = Alignment.CenterEnd
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Surface3)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(fraction = progresso.coerceIn(0f, 1f))
+                        .background(corBarra)
+                )
+            }
+        }
+
+        // Botões de ação
+        Column(
+            modifier = Modifier.padding(end = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (listaComItens.lista.isShared) {
+                IconButton(
+                    onClick = onSincronizar,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Sincronizar lista",
+                        tint = Primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else {
+                IconButton(
+                    onClick = onCompartilhar,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Compartilhar lista",
+                        tint = Primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Deletar lista",
                     tint = Pink,
-                    modifier = Modifier.padding(end = 20.dp)
+                    modifier = Modifier.size(20.dp)
                 )
-            }
-        }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Surface)
-                .border(1.dp, Border, RoundedCornerShape(16.dp)),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Área principal — clicável para navegar, long press para editar
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .combinedClickable(
-                        onClick = onClick,
-                        onLongClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onEditar()
-                        }
-                    )
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = listaComItens.lista.nome,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Text(
-                    text = dataCriacao,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextTertiary
-                )
-
-                Text(
-                    text = "$comprados de $total itens comprados",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
-
-                if (listaComItens.lista.valorEstimado > 0) {
-                    Text(
-                        text = "Estimado: R$ %.2f".format(listaComItens.lista.valorEstimado / 100.0),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextTertiary
-                    )
-                }
-
-                if (totalGasto > 0) {
-                    Text(
-                        text = "Gasto: R$ %.2f".format(totalGasto / 100.0),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Green
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Surface3)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(fraction = progresso.coerceIn(0f, 1f))
-                            .background(corBarra)
-                    )
-                }
-            }
-
-            // Botões de ação
-            Column(
-                modifier = Modifier.padding(end = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (listaComItens.lista.isShared) {
-                    IconButton(
-                        onClick = onSincronizar,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Sincronizar lista",
-                            tint = Primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                } else {
-                    IconButton(
-                        onClick = onCompartilhar,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Compartilhar lista",
-                            tint = Primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Deletar lista",
-                        tint = Pink,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
             }
         }
     }
