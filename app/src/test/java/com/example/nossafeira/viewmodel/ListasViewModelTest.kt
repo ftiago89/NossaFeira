@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -207,5 +208,91 @@ class ListasViewModelTest {
         viewModel.sincronizarLista(listaComItens)
 
         assertEquals(SyncEvento.Mesclada, eventoDeferred.await())
+    }
+
+    // ── compartilharLista ────────────────────────────────────────────────────
+
+    @Test
+    fun `compartilharLista emite Compartilhada no sucesso`() = runTest(dispatcher) {
+        val lista = listaComItens("Feira")
+        coJustRun { repository.compartilharLista(lista) }
+
+        val eventoDeferred = async { viewModel.syncEvento.first() }
+        viewModel.compartilharLista(lista)
+
+        assertEquals(SyncEvento.Compartilhada, eventoDeferred.await())
+    }
+
+    @Test
+    fun `compartilharLista emite ErroRede na falha`() = runTest(dispatcher) {
+        val lista = listaComItens("Feira")
+        coEvery { repository.compartilharLista(lista) } throws RuntimeException("rede")
+
+        val eventoDeferred = async { viewModel.syncEvento.first() }
+        viewModel.compartilharLista(lista)
+
+        assertEquals(SyncEvento.ErroRede, eventoDeferred.await())
+    }
+
+    @Test
+    fun `sharingIds vazio apos compartilhar`() = runTest(dispatcher) {
+        val lista = listaComItens("Feira")
+        coJustRun { repository.compartilharLista(lista) }
+
+        viewModel.compartilharLista(lista)
+
+        assertTrue(viewModel.sharingIds.value.isEmpty())
+    }
+
+    // ── deletarLista ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `deletarLista local chama repository deletarLista`() = runTest(dispatcher) {
+        val lista = ListaComItens(
+            lista = ListaFeira(id = 1, nome = "Feira", isShared = false),
+            itens = emptyList()
+        )
+        coJustRun { repository.deletarLista(1) }
+
+        viewModel.deletarLista(lista)
+
+        coVerify { repository.deletarLista(1) }
+    }
+
+    @Test
+    fun `deletarLista compartilhada chama repository deletarListaCompartilhada`() = runTest(dispatcher) {
+        val lista = ListaComItens(
+            lista = ListaFeira(id = 1, nome = "Feira", isShared = true, remoteId = "abc"),
+            itens = emptyList()
+        )
+        coJustRun { repository.deletarListaCompartilhada(lista.lista) }
+
+        viewModel.deletarLista(lista)
+
+        coVerify { repository.deletarListaCompartilhada(lista.lista) }
+    }
+
+    @Test
+    fun `deletarLista compartilhada com falha faz fallback para deletar local`() = runTest(dispatcher) {
+        val lista = ListaComItens(
+            lista = ListaFeira(id = 1, nome = "Feira", isShared = true, remoteId = "abc"),
+            itens = emptyList()
+        )
+        coEvery { repository.deletarListaCompartilhada(lista.lista) } throws RuntimeException("rede")
+        coJustRun { repository.deletarLista(1) }
+
+        viewModel.deletarLista(lista)
+
+        coVerify { repository.deletarLista(1) }
+    }
+
+    @Test
+    fun `deletingIds vazio apos deletar`() = runTest(dispatcher) {
+        val lista = listaComItens("Feira")
+        coJustRun { repository.deletarLista(1) }
+
+        viewModel.deletarLista(lista)
+
+        assertTrue(viewModel.deletingIds.value.isEmpty())
     }
 }

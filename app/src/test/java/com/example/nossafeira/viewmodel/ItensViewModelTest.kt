@@ -6,13 +6,17 @@ import com.example.nossafeira.data.model.ItemFeira
 import com.example.nossafeira.data.model.ListaComItens
 import com.example.nossafeira.data.model.ListaFeira
 import com.example.nossafeira.data.repository.NossaFeiraRepository
+import com.example.nossafeira.data.repository.SyncResult
+import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -20,6 +24,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -239,5 +244,140 @@ class ItensViewModelTest {
         viewModel.deletarItem(item)
 
         coVerify { repository.deletarItem(item) }
+    }
+
+    // ── compartilharLista ────────────────────────────────────────────────────
+
+    @Test
+    fun `compartilharLista emite Compartilhada no sucesso`() = runTest(dispatcher) {
+        backgroundScope.launch { viewModel.listaComItens.collect {} }
+        listaFlow.value = ListaComItens(
+            lista = ListaFeira(id = listaId, nome = "Feira"),
+            itens = emptyList()
+        )
+        coJustRun { repository.compartilharLista(any()) }
+
+        val evento = async { viewModel.syncEvento.first() }
+        viewModel.compartilharLista()
+
+        assertEquals(SyncEvento.Compartilhada, evento.await())
+    }
+
+    @Test
+    fun `compartilharLista emite ErroRede na falha`() = runTest(dispatcher) {
+        backgroundScope.launch { viewModel.listaComItens.collect {} }
+        listaFlow.value = ListaComItens(
+            lista = ListaFeira(id = listaId, nome = "Feira"),
+            itens = emptyList()
+        )
+        coEvery { repository.compartilharLista(any()) } throws RuntimeException("rede")
+
+        val evento = async { viewModel.syncEvento.first() }
+        viewModel.compartilharLista()
+
+        assertEquals(SyncEvento.ErroRede, evento.await())
+    }
+
+    @Test
+    fun `compartilharLista com lista null nao faz nada`() = runTest(dispatcher) {
+        viewModel.compartilharLista()
+
+        coVerify(exactly = 0) { repository.compartilharLista(any()) }
+    }
+
+    @Test
+    fun `isSharing e false apos compartilhar`() = runTest(dispatcher) {
+        backgroundScope.launch { viewModel.listaComItens.collect {} }
+        listaFlow.value = ListaComItens(
+            lista = ListaFeira(id = listaId, nome = "Feira"),
+            itens = emptyList()
+        )
+        coJustRun { repository.compartilharLista(any()) }
+
+        viewModel.compartilharLista()
+
+        assertFalse(viewModel.isSharing.value)
+    }
+
+    // ── sincronizarLista ─────────────────────────────────────────────────────
+
+    @Test
+    fun `sincronizarLista emite Sincronizada no sucesso`() = runTest(dispatcher) {
+        backgroundScope.launch { viewModel.listaComItens.collect {} }
+        listaFlow.value = ListaComItens(
+            lista = ListaFeira(id = listaId, nome = "Feira", remoteId = "abc123", isShared = true),
+            itens = emptyList()
+        )
+        coEvery { repository.sincronizarLista(any()) } returns SyncResult.Sucesso
+
+        val evento = async { viewModel.syncEvento.first() }
+        viewModel.sincronizarLista()
+
+        assertEquals(SyncEvento.Sincronizada, evento.await())
+    }
+
+    @Test
+    fun `sincronizarLista emite Mesclada quando merge`() = runTest(dispatcher) {
+        backgroundScope.launch { viewModel.listaComItens.collect {} }
+        listaFlow.value = ListaComItens(
+            lista = ListaFeira(id = listaId, nome = "Feira", remoteId = "abc123", isShared = true),
+            itens = emptyList()
+        )
+        coEvery { repository.sincronizarLista(any()) } returns SyncResult.Mesclada
+
+        val evento = async { viewModel.syncEvento.first() }
+        viewModel.sincronizarLista()
+
+        assertEquals(SyncEvento.Mesclada, evento.await())
+    }
+
+    @Test
+    fun `sincronizarLista emite ListaDeletada quando 404`() = runTest(dispatcher) {
+        backgroundScope.launch { viewModel.listaComItens.collect {} }
+        listaFlow.value = ListaComItens(
+            lista = ListaFeira(id = listaId, nome = "Feira", remoteId = "abc123", isShared = true),
+            itens = emptyList()
+        )
+        coEvery { repository.sincronizarLista(any()) } returns SyncResult.ListaDeletada
+
+        val evento = async { viewModel.syncEvento.first() }
+        viewModel.sincronizarLista()
+
+        assertEquals(SyncEvento.ListaDeletada, evento.await())
+    }
+
+    @Test
+    fun `sincronizarLista emite ErroRede na falha`() = runTest(dispatcher) {
+        backgroundScope.launch { viewModel.listaComItens.collect {} }
+        listaFlow.value = ListaComItens(
+            lista = ListaFeira(id = listaId, nome = "Feira", remoteId = "abc123", isShared = true),
+            itens = emptyList()
+        )
+        coEvery { repository.sincronizarLista(any()) } throws RuntimeException("rede")
+
+        val evento = async { viewModel.syncEvento.first() }
+        viewModel.sincronizarLista()
+
+        assertEquals(SyncEvento.ErroRede, evento.await())
+    }
+
+    @Test
+    fun `sincronizarLista sem remoteId nao chama repository`() = runTest(dispatcher) {
+        backgroundScope.launch { viewModel.listaComItens.collect {} }
+        listaFlow.value = ListaComItens(
+            lista = ListaFeira(id = listaId, nome = "Feira", remoteId = null),
+            itens = emptyList()
+        )
+
+        viewModel.sincronizarLista()
+
+        coVerify(exactly = 0) { repository.sincronizarLista(any()) }
+    }
+
+    @Test
+    fun `sincronizarLista com lista null nao faz nada`() = runTest(dispatcher) {
+        viewModel.sincronizarLista()
+
+        coVerify(exactly = 0) { repository.sincronizarLista(any()) }
     }
 }
