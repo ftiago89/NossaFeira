@@ -2,6 +2,14 @@
 
 ---
 
+## v1.2.2 — 2026-03-28
+
+### Correções
+
+- **Listas duplicadas ao reinstalar**: desabilitado o auto backup do Android (`allowBackup=false`) para evitar que o banco Room restaurado gere cópias locais de listas já compartilhadas.
+
+---
+
 ## v1.2.1 — 2026-03-28
 
 ### Novidades
