@@ -2,6 +2,26 @@
 
 ---
 
+## v1.2.1 — 2026-03-28
+
+### Novidades
+
+- **Categoria pré-selecionada**: ao adicionar um novo item, a categoria "Outros" já vem selecionada por padrão.
+- **Ordenação alfabética**: itens na lista agora são exibidos em ordem alfabética (case-insensitive).
+- **Compartilhar/sincronizar na tela de itens**: botão na top bar da tela de itens — compartilha a lista se ainda for local, ou sincroniza se já for compartilhada. Mesmo padrão visual da tela de listas (animação de rotação durante sync).
+- **Feedback visual de compartilhamento**: spinner substitui o ícone de share enquanto a operação está em andamento (tanto na tela de listas quanto na de itens). Bloqueia cliques concorrentes.
+- **Feedback visual de deleção**: spinner substitui o ícone de lixeira no ListaCard enquanto a deleção está em andamento.
+
+### Interno
+
+- `ItensViewModel` expandido com `compartilharLista()`, `sincronizarLista()`, `isSyncing`, `isSharing` e `syncEvento`.
+- `ListasViewModel` expandido com `sharingIds` e `deletingIds` para feedback visual granular por lista.
+- `ItensViewModelTest` expandido para 27 casos (sync, share, ordenação).
+- `ListasViewModelTest` expandido para 21 casos (share, delete, feedback visual).
+- CLAUDE.md atualizado com novas features e padrão de teste para `WhileSubscribed` StateFlow.
+
+---
+
 ## v1.2.0 — 2026-03-28
 
 ### Novidades
