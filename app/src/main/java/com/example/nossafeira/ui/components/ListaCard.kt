@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +64,8 @@ fun ListaCard(
     onCompartilhar: () -> Unit = {},
     onSincronizar: () -> Unit = {},
     onEditar: () -> Unit = {},
+    isSharing: Boolean = false,
+    isDeleting: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val total = listaComItens.itens.size
@@ -175,26 +178,44 @@ fun ListaCard(
             } else {
                 IconButton(
                     onClick = onCompartilhar,
+                    enabled = !isSharing,
                     modifier = Modifier.size(40.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Compartilhar lista",
-                        tint = Primary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    if (isSharing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Primary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Compartilhar lista",
+                            tint = Primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
             IconButton(
                 onClick = onDelete,
+                enabled = !isDeleting,
                 modifier = Modifier.size(40.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Deletar lista",
-                    tint = Pink,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (isDeleting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Pink,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Deletar lista",
+                        tint = Pink,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

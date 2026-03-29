@@ -241,6 +241,10 @@ val TextTertiary = Color(0xFF5A6080)
 - Toque no card → navega para ItensScreen passando o listaId
 - **Long press** na área principal → abre `AddListaSheet` em modo edição (haptic feedback + `onEditar`)
 
+#### Feedback visual de loading nos botões:
+- **Compartilhar** (`isSharing`): quando `true`, ícone Share é substituído por `CircularProgressIndicator` (20dp, Primary) e clique desabilitado. Controlado por `ListasViewModel.sharingIds` (bloqueia uma operação por vez, spinner apenas na lista em andamento).
+- **Deletar** (`isDeleting`): quando `true`, ícone Delete é substituído por `CircularProgressIndicator` (20dp, Pink) e clique desabilitado. Controlado por `ListasViewModel.deletingIds` (bloqueia uma operação por vez).
+
 #### Assinatura:
 ```kotlin
 fun ListaCard(
@@ -250,6 +254,8 @@ fun ListaCard(
     onCompartilhar: () -> Unit = {},
     onSincronizar: () -> Unit = {},
     onEditar: () -> Unit = {},
+    isSharing: Boolean = false,
+    isDeleting: Boolean = false,
     modifier: Modifier = Modifier
 )
 ```
@@ -315,6 +321,7 @@ fun ItemCard(
 - Label de campo: 12sp semibold uppercase, cor TextSecondary, letter-spacing 0.5
 - Input: background Surface2, border 1.5dp (Border normal / Primary em foco), radius 10dp
 - Campos: "Nome do item" (com botão de microfone para entrada por voz), "Quantidade" (pré-preenchido com "1" no modo criação) e "PREÇO R$ (OPCIONAL)" (teclado decimal, convertido para `Int` em centavos)
+- **Categoria padrão**: no modo criação, a categoria `OUTROS` já vem pré-selecionada. No modo edição, usa a categoria do item existente.
 
 #### Campo de nome — entrada por voz:
 O campo de nome é uma `Row` com o input e um botão de microfone 48×48dp ao lado:
@@ -376,13 +383,16 @@ fun AddItemSheet(
 
 - **Marcar item**: toque no checkbox → alterna `comprado`, atualiza progress bar e badge
 - **Filtrar**: toque no chip → filtra lista por categoria, atualiza contador da seção
+- **Ordenação**: itens sempre ordenados alfabeticamente (case-insensitive) via `sortedBy { it.nome.lowercase() }` no `itensFiltrados`
 - **Adicionar**: FAB → abre BottomSheet; validar nome não vazio e categoria selecionada
 - **Deletar item**: ícone lixeira (Pink) no final do ItemCard
-- **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard
+- **Deletar lista**: ícone lixeira (Pink) no cabeçalho do ListaCard — exibe spinner durante processamento (feedback visual via `isDeleting`)
 - **Editar item**: long press no ItemCard → abre `AddItemSheet` em modo edição com campos pré-preenchidos; ao confirmar chama `ItensViewModel.editarItem`
 - **Editar lista**: long press no ListaCard → abre `AddListaSheet` em modo edição com nome e valor pré-preenchidos; ao confirmar chama `ListasViewModel.editarLista` — atualiza `updatedAt`, propagando a mudança no sync
 - **Entrada por voz (nome)**: ícone microfone ao lado do campo de nome no `AddItemSheet` → solicita permissão `RECORD_AUDIO` → lança `ACTION_RECOGNIZE_SPEECH` (dialog do sistema, pt-BR) → resultado preenche o campo nome. Launchers ficam em `ItensScreen`. Estado `nomeReconhecido` em `rememberSaveable`.
 - **Câmera OCR (preço)**: ícone câmera ao lado do campo de preço no `AddItemSheet` → solicita permissão `CAMERA` → abre câmera do sistema via `TakePicture` → ML Kit lê o texto → `extrairPrecosDaEtiqueta` filtra os preços → preenche campo ou exibe chips de escolha. Launchers ficam em `ItensScreen` (o `ModalBottomSheet` pode ser destruído enquanto a câmera está aberta). Estado de OCR (`precoSugeridos`, `isProcessandoOcr`, `fotoUri`) em `rememberSaveable`.
+- **Compartilhar lista (ItensScreen)**: botão na `ItensTopBar` — se `!isShared`, ícone `Share` (Primary); se `isShared`, ícone `Refresh` com animação de rotação (800ms/volta) durante sync. Exibe spinner durante compartilhamento (`isSharing`). Lógica em `ItensViewModel.compartilharLista()` e `sincronizarLista()`. Toasts de feedback via `syncEvento` (SharedFlow).
+- **Compartilhar lista (ListasScreen)**: botão no `ListaCard` — exibe spinner durante compartilhamento (`isSharing`). Bloqueio de concorrência: apenas uma lista pode ser compartilhada por vez (`ListasViewModel.sharingIds`).
 - **Animações**: itens entram com `slideIn` + `fadeIn` ao carregar a lista
 - **Feedback tátil**: `LocalHapticFeedback` ao marcar item como comprado e ao acionar long press para edição
 
@@ -449,6 +459,19 @@ val job = launch { viewModel.syncEvento.collect { ... } }
 viewModel.acaoQueEmite()  // evento pode ser perdido
 ```
 
+### Testando métodos que leem StateFlow com WhileSubscribed
+
+Quando um método do ViewModel lê `stateFlow.value` (ex: `listaComItens.value`) e o StateFlow usa `SharingStarted.WhileSubscribed`, é necessário ativar o upstream no teste. Sem subscriber, o valor permanece `null` (initial value).
+
+```kotlin
+// Ativar o StateFlow antes de setar o valor e chamar o método
+backgroundScope.launch { viewModel.listaComItens.collect {} }
+listaFlow.value = ListaComItens(...)
+viewModel.metodoQueLe()
+```
+
+O `backgroundScope` é cancelado automaticamente ao final do teste — sem risco de coroutine pendente.
+
 ### Dependências de teste (libs.versions.toml)
 ```toml
 mockk = "1.13.10"
@@ -465,8 +488,8 @@ androidTestImplementation(libs.androidx.room.testing)
 |---|---|
 | `PrecoUtilsTest` | 18 — `extrairQuantidadeNumerica` e `calcularTotalGasto` |
 | `PrecoOcrExtractorTest` | 19 — vírgula, ponto decimal, milhar, espaços, múltiplos, deduplicação |
-| `ListasViewModelTest` | 14 — busca, filtragem, criarLista, sync eventos, isSyncing |
-| `ItensViewModelTest` | 17 — filtro, itensFiltrados, adicionarItem, editarItem, toggle, delete |
+| `ListasViewModelTest` | 21 — busca, filtragem, criarLista, sync eventos, isSyncing, compartilharLista, deletarLista (local, compartilhada, fallback), sharingIds, deletingIds |
+| `ItensViewModelTest` | 27 — filtro, itensFiltrados, adicionarItem, editarItem, toggle, delete, compartilharLista (sucesso, erro, null, isSharing), sincronizarLista (sucesso, mesclada, deletada, erro, sem remoteId, null) |
 | `NossaFeiraRepositoryTest` | 21 — operações de item, sincronizarLista (10 cenários com merge three-way), pullStartup (5 cenários) |
 
 ### Cobertura atual (instrumented tests — rodam no emulador/dispositivo)

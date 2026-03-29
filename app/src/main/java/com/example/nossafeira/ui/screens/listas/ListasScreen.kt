@@ -78,6 +78,8 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
     val listas by viewModel.listas.collectAsStateWithLifecycle()
     val busca by viewModel.busca.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val sharingIds by viewModel.sharingIds.collectAsStateWithLifecycle()
+    val deletingIds by viewModel.deletingIds.collectAsStateWithLifecycle()
     var mostrarAddSheet by remember { mutableStateOf(false) }
     var listaParaEditar by remember { mutableStateOf<ListaComItens?>(null) }
     val context = LocalContext.current
@@ -147,6 +149,8 @@ fun ListasScreen(onListaClick: (Int) -> Unit) {
                             onCompartilhar = { viewModel.compartilharLista(listaComItens) },
                             onSincronizar = { viewModel.sincronizarLista(listaComItens) },
                             onEditar = { listaParaEditar = listaComItens },
+                            isSharing = listaComItens.lista.id in sharingIds,
+                            isDeleting = listaComItens.lista.id in deletingIds,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp)
                                 .animateItem()

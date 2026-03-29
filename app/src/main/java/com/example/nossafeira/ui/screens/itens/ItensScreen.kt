@@ -16,7 +16,14 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.result.contract.ActivityResultContracts.TakePicture
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +41,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,6 +79,7 @@ import com.example.nossafeira.ui.components.SummaryCard
 import com.example.nossafeira.ui.screens.listas.NossaFeiraFab
 import com.example.nossafeira.ui.theme.Background
 import com.example.nossafeira.ui.theme.NossaFeiraTheme
+import com.example.nossafeira.ui.theme.Primary
 import com.example.nossafeira.ui.theme.Surface
 import com.example.nossafeira.ui.theme.TextPrimary
 import com.example.nossafeira.ui.theme.TextSecondary
@@ -76,6 +88,7 @@ import com.example.nossafeira.ui.utils.calcularTotalGasto
 import com.example.nossafeira.ui.utils.extrairPrecosDaEtiqueta
 import com.example.nossafeira.ui.utils.extrairQuantidadeNumerica
 import com.example.nossafeira.viewmodel.ItensViewModel
+import com.example.nossafeira.viewmodel.SyncEvento
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -100,7 +113,23 @@ fun ItensScreen(
     val listaComItens by viewModel.listaComItens.collectAsStateWithLifecycle()
     val itensFiltrados by viewModel.itensFiltrados.collectAsStateWithLifecycle()
     val filtroCategoria by viewModel.filtroCategoria.collectAsStateWithLifecycle()
+    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    val isSharing by viewModel.isSharing.collectAsStateWithLifecycle()
     var mostrarAddSheet by remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.syncEvento.collect { evento ->
+            val mensagem = when (evento) {
+                SyncEvento.Compartilhada -> "Lista compartilhada com sucesso."
+                SyncEvento.Sincronizada  -> "Lista sincronizada com sucesso."
+                SyncEvento.Mesclada      -> "Lista sincronizada. Novos itens foram adicionados."
+                SyncEvento.ErroRede      -> "Falha na sincronização. Verifique sua conexão."
+                SyncEvento.ListaDeletada -> "A lista foi removida pelo outro membro e voltou a ser local."
+                SyncEvento.PullConcluido -> "Listas sincronizadas com sucesso."
+            }
+            Toast.makeText(context, mensagem, Toast.LENGTH_SHORT).show()
+        }
+    }
     var itemParaEditar by remember { mutableStateOf<ItemFeira?>(null) }
 
     // Estado da câmera/OCR — rememberSaveable para sobreviver a process death
@@ -207,7 +236,12 @@ fun ItensScreen(
         topBar = {
             ItensTopBar(
                 titulo = listaComItens?.lista?.nome ?: "",
-                onBack = onBack
+                onBack = onBack,
+                isShared = listaComItens?.lista?.isShared ?: false,
+                isSyncing = isSyncing,
+                isSharing = isSharing,
+                onCompartilhar = { viewModel.compartilharLista() },
+                onSincronizar = { viewModel.sincronizarLista() }
             )
         },
         floatingActionButton = {
@@ -390,8 +424,24 @@ private suspend fun executarOcr(bitmap: Bitmap): String? {
 @Composable
 private fun ItensTopBar(
     titulo: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    isShared: Boolean = false,
+    isSyncing: Boolean = false,
+    isSharing: Boolean = false,
+    onCompartilhar: () -> Unit = {},
+    onSincronizar: () -> Unit = {}
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "sync_rotation")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "sync_rotation"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -429,6 +479,41 @@ private fun ItensTopBar(
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Surface)
+                .clickable(enabled = !isSyncing && !isSharing) {
+                    if (isShared) onSincronizar() else onCompartilhar()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            if (isShared) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Sincronizar lista",
+                    tint = if (isSyncing) Primary else TextSecondary,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .graphicsLayer { rotationZ = if (isSyncing) rotation else 0f }
+                )
+            } else if (isSharing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Primary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Compartilhar lista",
+                    tint = Primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

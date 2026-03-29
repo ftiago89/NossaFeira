@@ -9,9 +9,14 @@ import com.example.nossafeira.data.model.Categoria
 import com.example.nossafeira.data.model.ItemFeira
 import com.example.nossafeira.data.model.ListaComItens
 import com.example.nossafeira.data.repository.NossaFeiraRepository
+import com.example.nossafeira.data.repository.SyncResult
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -29,10 +34,20 @@ class ItensViewModel(
     private val _filtroCategoria = MutableStateFlow<Categoria?>(null)
     val filtroCategoria: StateFlow<Categoria?> = _filtroCategoria
 
+    private val _syncEvento = MutableSharedFlow<SyncEvento>()
+    val syncEvento: SharedFlow<SyncEvento> = _syncEvento.asSharedFlow()
+
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _isSharing = MutableStateFlow(false)
+    val isSharing: StateFlow<Boolean> = _isSharing.asStateFlow()
+
     val itensFiltrados: StateFlow<List<ItemFeira>> =
         combine(listaComItens, _filtroCategoria) { listaCom, filtro ->
             val itens = listaCom?.itens ?: emptyList()
-            if (filtro == null) itens else itens.filter { it.categoria == filtro }
+            val filtrados = if (filtro == null) itens else itens.filter { it.categoria == filtro }
+            filtrados.sortedBy { it.nome.lowercase() }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // ── Ações ─────────────────────────────────────────────────────────────────
@@ -70,6 +85,38 @@ class ItensViewModel(
     fun deletarItem(item: ItemFeira) {
         viewModelScope.launch {
             repository.deletarItem(item)
+        }
+    }
+
+    fun compartilharLista() {
+        val listaCom = listaComItens.value ?: return
+        if (_isSharing.value) return
+        viewModelScope.launch {
+            _isSharing.value = true
+            runCatching { repository.compartilharLista(listaCom) }
+                .onSuccess { _syncEvento.emit(SyncEvento.Compartilhada) }
+                .onFailure { _syncEvento.emit(SyncEvento.ErroRede) }
+            _isSharing.value = false
+        }
+    }
+
+    fun sincronizarLista() {
+        val listaCom = listaComItens.value ?: return
+        if (listaCom.lista.remoteId == null) return
+        viewModelScope.launch {
+            _isSyncing.value = true
+            runCatching { repository.sincronizarLista(listaCom) }
+                .onSuccess { result ->
+                    val evento = when (result) {
+                        SyncResult.Sucesso       -> SyncEvento.Sincronizada
+                        SyncResult.Mesclada      -> SyncEvento.Mesclada
+                        SyncResult.Erro          -> SyncEvento.ErroRede
+                        SyncResult.ListaDeletada -> SyncEvento.ListaDeletada
+                    }
+                    _syncEvento.emit(evento)
+                }
+                .onFailure { _syncEvento.emit(SyncEvento.ErroRede) }
+            _isSyncing.value = false
         }
     }
 

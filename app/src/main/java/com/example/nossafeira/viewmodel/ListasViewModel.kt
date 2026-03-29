@@ -46,6 +46,12 @@ class ListasViewModel(
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
+    private val _sharingIds = MutableStateFlow<Set<Int>>(emptySet())
+    val sharingIds: StateFlow<Set<Int>> = _sharingIds.asStateFlow()
+
+    private val _deletingIds = MutableStateFlow<Set<Int>>(emptySet())
+    val deletingIds: StateFlow<Set<Int>> = _deletingIds.asStateFlow()
+
     init {
         pullStartup()
     }
@@ -60,21 +66,29 @@ class ListasViewModel(
     }
 
     fun deletarLista(listaComItens: ListaComItens) {
+        val id = listaComItens.lista.id
+        if (_deletingIds.value.isNotEmpty()) return
         viewModelScope.launch {
+            _deletingIds.value = setOf(id)
             if (listaComItens.lista.isShared) {
                 runCatching { repository.deletarListaCompartilhada(listaComItens.lista) }
                     .onFailure { repository.deletarLista(listaComItens.lista.id) }
             } else {
                 repository.deletarLista(listaComItens.lista.id)
             }
+            _deletingIds.value = emptySet()
         }
     }
 
     fun compartilharLista(listaComItens: ListaComItens) {
+        if (_sharingIds.value.isNotEmpty()) return
+        val id = listaComItens.lista.id
         viewModelScope.launch {
+            _sharingIds.value = setOf(id)
             runCatching { repository.compartilharLista(listaComItens) }
                 .onSuccess { _syncEvento.emit(SyncEvento.Compartilhada) }
                 .onFailure { _syncEvento.emit(SyncEvento.ErroRede) }
+            _sharingIds.value = emptySet()
         }
     }
 
